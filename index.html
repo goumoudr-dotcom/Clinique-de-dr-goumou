@@ -1,0 +1,2268 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CMCD App — Centre Médico-Chirurgical La Délivrance</title>
+<meta name="theme-color" content="#0B3D5C">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CMCD">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --ink:#12232E;
+  --ink-soft:#3D5566;
+  --bg:#F6F8FA;
+  --panel:#FFFFFF;
+  --line:#DCE4E9;
+  --primary:#0B3D5C;
+  --primary-dark:#082A40;
+  --primary-tint:#E7EFF4;
+  --accent:#1E7A5F;
+  --accent-tint:#E6F3EE;
+  --warn:#B5541C;
+  --warn-tint:#FBEDE3;
+  --danger:#A32B2B;
+  --danger-tint:#FBE9E9;
+  --radius:10px;
+  --shadow:0 1px 2px rgba(18,35,46,.06), 0 4px 14px rgba(18,35,46,.05);
+  --font: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono: "SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button{font-family:inherit;}
+input,select,textarea{font-family:inherit;}
+::selection{background:var(--primary-tint);}
+
+/* ===== App shell ===== */
+#app{display:flex;height:100vh;width:100vw;}
+
+/* ---- Sidebar ---- */
+#sidebar{
+  width:236px;flex:none;background:var(--primary-dark);color:#EAF2F7;
+  display:flex;flex-direction:column;
+  transition:width .18s ease;
+}
+#sidebar.collapsed{width:64px;}
+.side-head{
+  display:flex;align-items:center;gap:10px;padding:18px 16px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.side-logo{
+  width:34px;height:34px;border-radius:8px;background:#fff;
+  display:flex;align-items:center;justify-content:center;flex:none;
+  border:1px solid rgba(255,255,255,.15);padding:3px;
+}
+.side-logo img{width:100%;height:100%;object-fit:contain;}
+.side-title{font-size:13.5px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;}
+.side-title small{display:block;font-weight:400;opacity:.6;font-size:11px;margin-top:1px;}
+#sidebar.collapsed .side-title{display:none;}
+.side-nav{flex:1;overflow-y:auto;padding:10px 8px;}
+.side-section-label{
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;opacity:.45;
+  padding:14px 10px 6px;font-weight:600;
+}
+#sidebar.collapsed .side-section-label{display:none;}
+.side-item{
+  display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:8px;cursor:pointer;
+  color:#CADCE6;font-size:13.5px;margin-bottom:1px;white-space:nowrap;overflow:hidden;
+  transition:background .12s;
+}
+.side-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+.side-item.active{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}
+.side-icon{width:18px;height:18px;flex:none;display:flex;align-items:center;justify-content:center;}
+.side-icon svg{width:17px;height:17px;}
+.side-badge{
+  margin-left:auto;background:var(--warn);color:#fff;font-size:10.5px;font-weight:700;
+  padding:1px 6px;border-radius:99px;
+}
+#sidebar.collapsed .side-badge, #sidebar.collapsed .side-item span.label{display:none;}
+.side-foot{
+  padding:12px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;
+}
+.side-avatar{
+  width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;
+}
+.side-user{flex:1;overflow:hidden;}
+.side-user-name{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.side-user-role{font-size:11px;opacity:.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#sidebar.collapsed .side-user, #sidebar.collapsed .logout-btn{display:none;}
+.logout-btn{
+  background:none;border:none;color:#CADCE6;cursor:pointer;padding:6px;border-radius:6px;flex:none;
+}
+.logout-btn:hover{background:rgba(255,255,255,.08);color:#fff;}
+.collapse-toggle{
+  background:none;border:none;color:#9BB4C1;cursor:pointer;padding:4px;border-radius:6px;margin-left:auto;flex:none;
+}
+.collapse-toggle:hover{background:rgba(255,255,255,.08);}
+
+/* ---- Main ---- */
+#main{flex:1;display:flex;flex-direction:column;min-width:0;}
+#topbar{
+  height:58px;flex:none;background:var(--panel);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:16px;padding:0 22px;
+}
+#topbar h1{font-size:16px;margin:0;font-weight:700;color:var(--ink);}
+#topbar .sub{font-size:12.5px;color:var(--ink-soft);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.search-box{
+  display:flex;align-items:center;gap:7px;background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;padding:6px 10px;width:260px;
+}
+.search-box input{border:none;background:none;outline:none;font-size:13px;width:100%;color:var(--ink);}
+.search-box svg{flex:none;opacity:.5;}
+.icon-btn{
+  width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--panel);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-soft);position:relative;
+}
+.icon-btn:hover{background:var(--bg);}
+.dot-alert{
+  position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--warn);
+  border:2px solid var(--panel);
+}
+#content{flex:1;overflow-y:auto;padding:24px 28px 60px;}
+
+/* ===== Cards / generic ===== */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);}
+.card-pad{padding:18px 20px;}
+.section-title{font-size:15px;font-weight:700;margin:0 0 3px;color:var(--ink);}
+.section-sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap;}
+.page-head h2{font-size:20px;margin:0 0 4px;font-weight:700;}
+.page-head p{font-size:13px;color:var(--ink-soft);margin:0;}
+
+.btn{
+  display:inline-flex;align-items:center;gap:7px;border-radius:8px;border:1px solid transparent;
+  padding:9px 15px;font-size:13.5px;font-weight:600;cursor:pointer;transition:.12s;white-space:nowrap;
+}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-outline{background:var(--panel);border-color:var(--line);color:var(--ink);}
+.btn-outline:hover{background:var(--bg);}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-danger:hover{background:#8A2323;}
+.btn-sm{padding:6px 11px;font-size:12.5px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;}
+.badge-accent{background:var(--accent-tint);color:var(--accent);}
+.badge-warn{background:var(--warn-tint);color:var(--warn);}
+.badge-danger{background:var(--danger-tint);color:var(--danger);}
+.badge-neutral{background:var(--primary-tint);color:var(--primary);}
+
+.grid{display:grid;gap:16px;}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-2{grid-template-columns:repeat(2,1fr);}
+@media(max-width:1180px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-3{grid-template-columns:repeat(2,1fr);}}
+
+.kpi-card{padding:16px 18px;}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.kpi-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.kpi-value{font-size:26px;font-weight:800;line-height:1;margin-bottom:4px;}
+.kpi-label{font-size:12.5px;color:var(--ink-soft);}
+.kpi-delta{font-size:11.5px;font-weight:600;margin-top:6px;}
+.kpi-delta.up{color:var(--accent);}
+.kpi-delta.down{color:var(--danger);}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-soft);
+  font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+tbody td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--bg);}
+.table-wrap{overflow-x:auto;}
+
+.form-row{margin-bottom:14px;}
+.form-row label{display:block;font-size:12.5px;font-weight:600;margin-bottom:5px;color:var(--ink);}
+.form-row .hint{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
+.input, select.input, textarea.input{
+  width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;
+  background:var(--panel);color:var(--ink);outline:none;transition:border-color .12s;
+}
+.input:focus{border-color:var(--primary);}
+textarea.input{resize:vertical;min-height:70px;}
+.form-cols-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-cols-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+@media(max-width:700px){.form-cols-2,.form-cols-3{grid-template-columns:1fr;}}
+
+.empty-state{text-align:center;padding:46px 20px;color:var(--ink-soft);}
+.empty-state svg{margin-bottom:12px;opacity:.35;}
+.empty-state h3{font-size:14.5px;color:var(--ink);margin:0 0 5px;}
+.empty-state p{font-size:12.5px;margin:0;}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;}
+.tab{
+  padding:9px 4px;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;
+  border-bottom:2px solid transparent;margin-right:20px;
+}
+.tab:hover{color:var(--ink);}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(18,35,46,.42);display:flex;align-items:center;justify-content:center;
+  z-index:200;padding:20px;
+}
+.modal{
+  background:var(--panel);border-radius:12px;max-width:640px;width:100%;max-height:88vh;overflow-y:auto;
+  box-shadow:0 12px 40px rgba(0,0,0,.25);
+}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:var(--panel);z-index:1;
+}
+.modal-head h3{font-size:15.5px;margin:0;font-weight:700;}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--ink-soft);padding:4px;border-radius:6px;}
+.modal-close:hover{background:var(--bg);}
+.modal-body{padding:20px;}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--panel);}
+
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:8px;}
+.pwa-badge{
+  position:fixed;left:50%;transform:translateX(-50%);top:14px;z-index:500;
+  display:flex;align-items:center;gap:9px;padding:9px 16px;border-radius:99px;
+  font-size:12.5px;font-weight:600;box-shadow:var(--shadow);
+}
+.pwa-badge.hidden{display:none;}
+.pwa-badge-offline{background:var(--warn-tint);color:var(--warn);border:1px solid rgba(181,84,28,.25);}
+.pwa-badge-update{background:var(--primary);color:#fff;}
+.pwa-badge-update button{
+  background:#fff;color:var(--primary);border:none;border-radius:99px;padding:4px 12px;
+  font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
+}
+.pwa-badge-update button:hover{background:var(--primary-tint);}
+.toast{
+  background:var(--ink);color:#fff;padding:11px 16px;border-radius:8px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.2);
+  display:flex;align-items:center;gap:9px;animation:toastIn .18s ease;min-width:220px;
+}
+.toast.success{background:var(--accent);}
+.toast.error{background:var(--danger);}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.avatar-sm{width:30px;height:30px;border-radius:50%;background:var(--primary-tint);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;flex:none;}
+
+.pat-name-cell{display:flex;align-items:center;gap:10px;}
+.pat-id{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);}
+
+.list-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);}
+.list-row:last-child{border-bottom:none;}
+.list-row-main{flex:1;min-width:0;}
+.list-row-title{font-size:13.5px;font-weight:600;}
+.list-row-sub{font-size:12px;color:var(--ink-soft);margin-top:1px;}
+
+.scrollhide::-webkit-scrollbar{width:7px;height:7px;}
+.scrollhide::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px;}
+#content.scrollhide::-webkit-scrollbar-thumb, .side-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);}
+#content{scrollbar-width:thin;}
+
+.locked-banner{
+  display:flex;align-items:center;gap:9px;background:var(--warn-tint);color:var(--warn);
+  padding:9px 13px;border-radius:8px;font-size:12.5px;font-weight:600;margin-bottom:16px;
+}
+
+/* ===== Auth screen ===== */
+#auth-screen{
+  position:fixed;inset:0;background:linear-gradient(160deg,#0B3D5C 0%,#082A40 60%,#061C2C 100%);
+  display:flex;align-items:center;justify-content:center;z-index:500;padding:20px;
+}
+.auth-card{
+  background:#fff;border-radius:16px;width:100%;max-width:420px;padding:34px 32px 28px;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+}
+.auth-logo{
+  width:64px;height:64px;border-radius:13px;background:#fff;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;
+  box-shadow:0 1px 4px rgba(18,35,46,.12);padding:6px;
+}
+.auth-logo img{width:100%;height:100%;object-fit:contain;}
+.auth-card h1{text-align:center;font-size:17px;margin:0 0 3px;color:var(--ink);}
+.auth-card .auth-sub{text-align:center;font-size:12.5px;color:var(--ink-soft);margin:0 0 24px;}
+.auth-error{
+  background:var(--danger-tint);color:var(--danger);font-size:12.5px;padding:9px 12px;border-radius:8px;
+  margin-bottom:14px;display:none;font-weight:600;text-align:center;
+}
+.auth-foot{text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:18px;}
+
+/* ===== Login par profil + PIN ===== */
+.profile-loading{display:flex;align-items:center;gap:8px;justify-content:center;color:var(--ink-soft);font-size:13px;padding:22px 0;}
+.profile-empty{text-align:center;color:var(--ink-soft);font-size:13px;padding:22px 0;}
+
+
+.pin-back{background:none;border:none;color:var(--primary);font-size:12.5px;font-weight:600;cursor:pointer;padding:0 0 18px;display:block;}
+.pin-user{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+.pin-user-avatar{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;flex:none;background:var(--primary);}
+.pin-user-name{font-weight:700;font-size:14.5px;color:var(--ink);}
+.pin-user-role{font-size:12px;color:var(--ink-soft);}
+.pin-instruction{font-size:12.5px;color:var(--ink-soft);margin:14px 0 14px;text-align:center;}
+.pin-dots{display:flex;gap:10px;justify-content:center;margin-bottom:22px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);transition:.15s;}
+.pin-dot.filled{background:var(--primary);border-color:var(--primary);}
+.pin-dots.shake{animation:pinshake .4s;}
+@keyframes pinshake{
+  10%,90%{transform:translateX(-2px);} 20%,80%{transform:translateX(4px);}
+  30%,50%,70%{transform:translateX(-8px);} 40%,60%{transform:translateX(8px);}
+}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.pin-keypad button{
+  padding:14px 0;font-size:17px;font-weight:700;border-radius:10px;border:1px solid var(--line);
+  background:#fff;color:var(--ink);cursor:pointer;transition:.1s;font-family:inherit;
+}
+.pin-keypad button:active{background:var(--primary-tint);transform:scale(.96);}
+.pin-key-empty{border:none !important;background:none !important;cursor:default !important;}
+
+/* ===== Utility ===== */
+.hidden{display:none !important;}
+.mono{font-family:var(--font-mono);}
+.flex{display:flex;}
+.flex-between{display:flex;align-items:center;justify-content:space-between;}
+.gap-8{gap:8px;}
+.text-soft{color:var(--ink-soft);}
+.text-sm{font-size:12.5px;}
+.mb-0{margin-bottom:0;}
+.spinner{
+  width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+.spinner.dark{border-color:var(--line);border-top-color:var(--primary);}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<!-- ===================== AUTH SCREEN ===================== -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo"><img src="./icon-512.png" alt="Logo CMCD"></div>
+    <h1>Centre Médico-Chirurgical La Délivrance</h1>
+    <p class="auth-sub">Connexion à l'espace professionnel</p>
+    <div class="auth-error" id="auth-error"></div>
+
+    <!-- Étape 0 : configuration initiale (aucun compte encore créé) -->
+    <div id="bootstrap-step" class="hidden">
+      <p class="pin-instruction">Aucun compte n'existe encore.<br>Créez le compte administrateur initial.</p>
+      <div class="form-row"><label>Prénom</label><input class="input" id="bs-prenom" placeholder="Prénom"></div>
+      <div class="form-row"><label>Nom</label><input class="input" id="bs-nom" placeholder="Nom"></div>
+      <div class="form-row"><label>Code PIN (6 chiffres)</label><input class="input" id="bs-pin1" inputmode="numeric" maxlength="6" placeholder="••••••"></div>
+      <div class="form-row"><label>Confirmer le PIN</label><input class="input" id="bs-pin2" inputmode="numeric" maxlength="6" placeholder="••••••"></div>
+      <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;" id="bs-submit">Créer le compte administrateur</button>
+    </div>
+
+    <!-- Étape 1 : choix du profil -->
+    <div id="profile-step">
+      <div id="profile-loading" class="profile-loading"><span class="spinner dark"></span> Chargement du personnel…</div>
+      <div id="profile-select-wrap" class="hidden">
+        <div class="form-row">
+          <label>Choisissez votre profil</label>
+          <select class="input" id="profile-select"></select>
+        </div>
+        <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;" id="profile-continue-btn">Continuer</button>
+      </div>
+      <div id="profile-empty" class="profile-empty hidden">Aucun compte actif trouvé. Contactez l'administrateur.</div>
+    </div>
+
+    <!-- Étape 2 : saisie du PIN -->
+    <div id="pin-step" class="hidden">
+      <button type="button" id="pin-back" class="pin-back">← Changer de profil</button>
+      <div class="pin-user">
+        <div class="pin-user-avatar" id="pin-user-avatar">--</div>
+        <div>
+          <div class="pin-user-name" id="pin-user-name"></div>
+          <div class="pin-user-role" id="pin-user-role"></div>
+        </div>
+      </div>
+      <p class="pin-instruction" id="pin-instruction">Entrez votre code PIN</p>
+      <div class="pin-dots" id="pin-dots">
+        <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
+      </div>
+      <div class="pin-keypad" id="pin-keypad">
+        <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+        <button type="button" class="pin-key-empty" tabindex="-1"></button><button type="button" data-k="0">0</button><button type="button" id="pin-del">⌫</button>
+      </div>
+    </div>
+
+    <p class="auth-foot">Accès réservé au personnel autorisé du CMCD.<br>Contactez l'administrateur pour toute demande de compte.</p>
+  </div>
+</div>
+
+<!-- ===================== APP SHELL ===================== -->
+<div id="app" class="hidden">
+  <aside id="sidebar">
+    <div class="side-head">
+      <div class="side-logo"><img src="./icon-512.png" alt="Logo CMCD"></div>
+      <div class="side-title">CMCD App<small>La Délivrance</small></div>
+      <button class="collapse-toggle" id="collapse-toggle" title="Réduire le menu">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+    </div>
+    <nav class="side-nav scrollhide" id="side-nav"></nav>
+    <div class="side-foot">
+      <div class="side-avatar" id="side-avatar">--</div>
+      <div class="side-user">
+        <div class="side-user-name" id="side-user-name">—</div>
+        <div class="side-user-role" id="side-user-role">—</div>
+      </div>
+      <button class="logout-btn" id="logout-btn" title="Déconnexion">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div id="main">
+    <div id="topbar">
+      <div>
+        <h1 id="topbar-title">Tableau de bord</h1>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="global-search" placeholder="Rechercher un patient…">
+        </div>
+        <button class="icon-btn" id="alerts-btn" title="Alertes">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span class="dot-alert hidden" id="alert-dot"></span>
+        </button>
+      </div>
+    </div>
+    <div id="content" class="scrollhide"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<div id="pwa-offline-badge" class="pwa-badge pwa-badge-offline hidden">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.58 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg>
+  Mode hors-ligne — données en cache
+</div>
+<div id="pwa-update-badge" class="pwa-badge pwa-badge-update hidden">
+  Nouvelle version disponible
+  <button id="pwa-update-btn">Mettre à jour</button>
+</div>
+
+<script>
+/* -------------------------------------------------------------------------
+   PWA — Enregistrement du service worker, statut réseau, mises à jour
+------------------------------------------------------------------------- */
+(function(){
+  const offlineBadge = document.getElementById("pwa-offline-badge");
+  const updateBadge = document.getElementById("pwa-update-badge");
+  const updateBtn = document.getElementById("pwa-update-btn");
+  let waitingWorker = null;
+
+  function refreshNetworkBadge(){
+    offlineBadge.classList.toggle("hidden", navigator.onLine);
+  }
+  window.addEventListener("online", refreshNetworkBadge);
+  window.addEventListener("offline", refreshNetworkBadge);
+  refreshNetworkBadge();
+
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", async ()=>{
+      try{
+        const reg = await navigator.serviceWorker.register("./sw.js");
+        // Une nouvelle version du SW est installée et attend d'activer.
+        reg.addEventListener("updatefound", ()=>{
+          const nw = reg.installing;
+          if(!nw) return;
+          nw.addEventListener("statechange", ()=>{
+            if(nw.state === "installed" && navigator.serviceWorker.controller){
+              waitingWorker = nw;
+              updateBadge.classList.remove("hidden");
+            }
+          });
+        });
+        // Vérifie périodiquement s'il existe une mise à jour du SW.
+        setInterval(()=>reg.update().catch(()=>{}), 60*60*1000);
+      }catch(err){
+        console.warn("Échec de l'enregistrement du service worker :", err);
+      }
+    });
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+      if(refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+
+    updateBtn.addEventListener("click", ()=>{
+      if(waitingWorker) waitingWorker.postMessage("SKIP_WAITING");
+      updateBadge.classList.add("hidden");
+    });
+  }
+})();
+</script>
+
+<script>
+/* =========================================================================
+   CMCD APP — Centre Médico-Chirurgical La Délivrance
+   Socle : Auth / Rôles / Dashboard + Modules : Accueil/Réception, Dossier
+   patient, Consultations.
+   Backend : Firebase (Auth + Firestore).
+   Fichier unique — HTML/CSS/JS.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   0. CONFIGURATION FIREBASE
+   -------------------------------------------------------------------------
+   Remplacer par la configuration du projet Firebase du CMCD.
+   Console Firebase > Paramètres du projet > Vos applications > SDK config.
+------------------------------------------------------------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyA9XXG85QjMyoD-9l_Pu0rdfmqVorsJFfU",
+  authDomain: "clinique-cmcd.firebaseapp.com",
+  projectId: "clinique-cmcd",
+  storageBucket: "clinique-cmcd.firebasestorage.app",
+  messagingSenderId: "1025708939658",
+  appId: "1:1025708939658:web:ee757ecd82ff6b1019d073"
+};
+
+let fbApp, auth, db;
+let FIREBASE_READY = false;
+try{
+  fbApp = firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  FIREBASE_READY = true;
+  // Persistance offline Firestore : garde en cache local (IndexedDB) les
+  // documents déjà lus, pour que l'app reste utilisable hors connexion.
+  // C'est ceci — pas le service worker — qui permet de consulter les
+  // données déjà chargées sans réseau. Le service worker gère le shell
+  // (HTML/CSS/JS) et les librairies, Firestore gère lui-même ses données.
+  db.enablePersistence({ synchronizeTabs: true }).catch((err)=>{
+    if(err.code === "failed-precondition"){
+      console.warn("Persistance Firestore : plusieurs onglets ouverts, désactivée sur celui-ci.");
+    }else if(err.code === "unimplemented"){
+      console.warn("Persistance Firestore : non supportée par ce navigateur.");
+    }else{
+      console.warn("Persistance Firestore non activée :", err);
+    }
+  });
+}catch(e){
+  console.warn("Firebase non initialisé (config à compléter) — mode démo local activé.", e);
+}
+
+/* -------------------------------------------------------------------------
+   1. RÔLES & PERMISSIONS (Module M13 — Administration et sécurité)
+------------------------------------------------------------------------- */
+const ROLES = {
+  admin:        { label: "Administrateur",     color:"#0B3D5C" },
+  medecin:      { label: "Médecin",            color:"#1E7A5F" },
+  infirmier:    { label: "Infirmier(ère)",     color:"#1E7A5F" },
+  laborantin:   { label: "Laborantin",         color:"#8A5A00" },
+  pharmacien:   { label: "Pharmacien(ne)",     color:"#8A5A00" },
+  receptionniste:{ label: "Réceptionniste",    color:"#0B3D5C" },
+  caissier:     { label: "Caissier(ère)",      color:"#0B3D5C" },
+  chirurgien:   { label: "Chirurgien(ne)",     color:"#1E7A5F" },
+  sage_femme:   { label: "Sage-femme",         color:"#1E7A5F" },
+  direction:    { label: "Direction",          color:"#0B3D5C" }
+};
+
+// Modules visibles par rôle (M13 — chaque utilisateur n'accède qu'à ses fonctions)
+const MODULE_ACCESS = {
+  dashboard:     ["admin","medecin","infirmier","laborantin","pharmacien","receptionniste","caissier","chirurgien","sage_femme","direction"],
+  accueil:       ["admin","receptionniste","direction"],
+  patients:      ["admin","medecin","infirmier","receptionniste","chirurgien","sage_femme","direction"],
+  consultations: ["admin","medecin","direction"],
+  soins:         ["admin","infirmier","direction"],
+  laboratoire:   ["admin","laborantin","medecin","direction"],
+  pharmacie:     ["admin","pharmacien","direction"],
+  obstetrique:   ["admin","sage_femme","medecin","direction"],
+  chirurgie:     ["admin","chirurgien","medecin","direction"],
+  caisse:        ["admin","caissier","direction"],
+  personnel:     ["admin","direction"],
+  rapports:      ["admin","direction"],
+  admin:         ["admin"]
+};
+
+function hasAccess(moduleKey){
+  if(!currentUserDoc) return false;
+  if(currentUserDoc.role === "admin") return true;
+  return (MODULE_ACCESS[moduleKey]||[]).includes(currentUserDoc.role);
+}
+
+/* -------------------------------------------------------------------------
+   2. NAVIGATION — définition des modules du menu
+------------------------------------------------------------------------- */
+const NAV_SECTIONS = [
+  { label:"Vue d'ensemble", items:[
+    { key:"dashboard", label:"Tableau de bord", icon:icoGrid },
+  ]},
+  { label:"Parcours patient", items:[
+    { key:"accueil", label:"Accueil / Réception", icon:icoDoor },
+    { key:"patients", label:"Dossiers patients", icon:icoFolder },
+    { key:"consultations", label:"Consultations", icon:icoStetho },
+    { key:"soins", label:"Soins infirmiers", icon:icoHeart },
+  ]},
+  { label:"Plateau technique", items:[
+    { key:"laboratoire", label:"Laboratoire", icon:icoFlask },
+    { key:"pharmacie", label:"Pharmacie", icon:icoPill },
+    { key:"obstetrique", label:"Obstétrique", icon:icoBaby },
+    { key:"chirurgie", label:"Chirurgie", icon:icoScalpel },
+  ]},
+  { label:"Gestion", items:[
+    { key:"caisse", label:"Caisse / Facturation", icon:icoCash },
+    { key:"personnel", label:"Personnel / RH", icon:icoUsers },
+    { key:"rapports", label:"Rapports & stats", icon:icoChart },
+  ]},
+  { label:"Système", items:[
+    { key:"admin", label:"Administration", icon:icoSettings },
+  ]},
+];
+
+function icoGrid(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>`;}
+function icoDoor(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M6 21V4a1 1 0 011-1h7l4 3v15M14 12v.01"/></svg>`;}
+function icoFolder(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>`;}
+function icoStetho(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.8 2.3A.3.3 0 105.2 2.8.3.3 0 004.8 2.3zM8 5v5a4 4 0 008 0V5M6 5V3M18 5V3M20 13v1a6 6 0 01-12 0v-1"/><circle cx="20" cy="16" r="2"/></svg>`;}
+function icoHeart(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/></svg>`;}
+function icoFlask(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v6l-5.5 9.5A1 1 0 005.4 20h13.2a1 1 0 00.9-1.5L14 9V3"/></svg>`;}
+function icoPill(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-45 12 12)"/><path d="M8.5 8.5l7 7"/></svg>`;}
+function icoBaby(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5 21v-4a7 7 0 0114 0v4"/></svg>`;}
+function icoScalpel(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l7-7M14 4l6 6-8.5 8.5a2.1 2.1 0 01-3-3L14 4z"/></svg>`;}
+function icoCash(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>`;}
+function icoUsers(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8"/></svg>`;}
+function icoChart(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M8 17V9M13 17V5M18 17v-7"/></svg>`;}
+function icoSettings(){return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>`;}
+
+/* -------------------------------------------------------------------------
+   3. ÉTAT GLOBAL
+------------------------------------------------------------------------- */
+let currentUser = null;      // Firebase auth user
+let currentUserDoc = null;   // { role, nom, prenom, service, actif }
+let currentModule = "dashboard";
+let sidebarCollapsed = false;
+
+// Cache local (Firestore -> local) pour affichage réactif simple
+let CACHE = {
+  patients: [],
+  consultations: [],
+  rdv: [],
+  users: [],
+  soins: [], laboratoire: [], pharmacie: [], obstetrique: [], chirurgie: [],
+  factures: [], paiements: [], settings: [], audit: [], mouvementsStock: [],
+};
+
+// Mode démo (utilisé si Firebase non configuré) : localStorage
+const DEMO_MODE = !FIREBASE_READY;
+const LS_KEY = "cmcd_demo_store_v1";
+
+function demoStore(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEY)) || demoSeed(); }
+  catch(e){ return demoSeed(); }
+}
+function demoSave(store){ localStorage.setItem(LS_KEY, JSON.stringify(store)); }
+function demoSeed(){
+  const seed = {
+    users: [
+      { id:"u1", email:"admin@cmcd.gn", pin:"123456", role:"admin", nom:"Goumou", prenom:"Dr", service:"Direction", actif:true },
+      { id:"u2", email:"medecin@cmcd.gn", pin:"123456", role:"medecin", nom:"Diallo", prenom:"Ibrahima", service:"Consultation générale", actif:true },
+      { id:"u3", email:"accueil@cmcd.gn", pin:"123456", role:"receptionniste", nom:"Bah", prenom:"Aïssatou", service:"Accueil", actif:true },
+    ],
+    patients: [],
+    consultations: [],
+    rdv: [],
+    seq: { patient: 0 }
+  };
+  demoSave(seed);
+  return seed;
+}
+
+/* -------------------------------------------------------------------------
+   4. AUTHENTIFICATION — sélection de profil + code PIN
+------------------------------------------------------------------------- */
+const authError = document.getElementById("auth-error");
+const bootstrapStep = document.getElementById("bootstrap-step");
+const profileStep = document.getElementById("profile-step");
+const profileLoading = document.getElementById("profile-loading");
+const profileSelectWrap = document.getElementById("profile-select-wrap");
+const profileSelect = document.getElementById("profile-select");
+const profileEmpty = document.getElementById("profile-empty");
+const pinStep = document.getElementById("pin-step");
+const pinDotsWrap = document.getElementById("pin-dots");
+const pinUserAvatar = document.getElementById("pin-user-avatar");
+const pinUserName = document.getElementById("pin-user-name");
+const pinUserRole = document.getElementById("pin-user-role");
+const pinInstruction = document.getElementById("pin-instruction");
+
+let selectedLoginUser = null;
+let loginUsersCache = [];
+let pinBuffer = "";
+let pinConfirmStage = null; // null | "first" | pending pin string awaiting confirmation
+
+function showAuthError(msg){
+  authError.textContent = msg;
+  authError.style.display = "block";
+}
+function hideAuthError(){ authError.style.display = "none"; }
+
+// Hash SHA-256 (hex) — utilisé pour ne jamais stocker le PIN en clair dans Firestore.
+async function hashPin(pin, salt){
+  const enc = new TextEncoder().encode(pin + ":" + salt);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function randomSalt(){
+  return Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function initialsOf(u){ return (((u.prenom||"")[0]||"")+((u.nom||"")[0]||"")).toUpperCase() || "?"; }
+function roleColorOf(u){ return (ROLES[u.role]||{}).color || "#0B3D5C"; }
+
+async function ensureAnonSession(){
+  if(DEMO_MODE) return;
+  if(!auth.currentUser){
+    await auth.signInAnonymously();
+  }
+}
+
+function showStep(step){
+  bootstrapStep.classList.toggle("hidden", step!=="bootstrap");
+  profileStep.classList.toggle("hidden", step!=="profile");
+  pinStep.classList.toggle("hidden", step!=="pin");
+}
+
+async function initAuthScreen(){
+  hideAuthError();
+  // Session déjà active sur cet appareil (même onglet) ?
+  const savedId = sessionStorage.getItem("cmcd_active_profile");
+  if(savedId){
+    try{
+      const u = await fetchLoginUserById(savedId);
+      if(u && u.actif!==false){ selectAndEnter(u); return; }
+      sessionStorage.removeItem("cmcd_active_profile");
+    }catch(e){ /* on retombe sur l'écran de sélection */ }
+  }
+  await loadProfileStep();
+}
+
+async function fetchLoginUserById(id){
+  if(DEMO_MODE){
+    return demoStore().users.find(x=>x.id===id) || null;
+  }
+  await ensureAnonSession();
+  const snap = await db.collection("users").doc(id).get();
+  return snap.exists ? { id, ...snap.data() } : null;
+}
+
+async function loadProfileStep(){
+  showStep("profile");
+  profileLoading.classList.remove("hidden");
+  profileSelectWrap.classList.add("hidden");
+  profileEmpty.classList.add("hidden");
+
+  let users = [];
+  try{
+    if(DEMO_MODE){
+      users = demoStore().users.filter(x=>x.actif!==false);
+    }else{
+      await ensureAnonSession();
+      const snap = await db.collection("users").limit(1).get();
+      if(snap.empty){
+        profileLoading.classList.add("hidden");
+        showStep("bootstrap");
+        return;
+      }
+      const usersSnap = await db.collection("users").where("actif","==",true).get();
+      users = usersSnap.docs.map(d=>({ id:d.id, ...d.data() }));
+    }
+  }catch(e){
+    console.error(e);
+    profileLoading.classList.add("hidden");
+    showAuthError("Impossible de charger la liste du personnel. Vérifiez la connexion.");
+    return;
+  }
+
+  profileLoading.classList.add("hidden");
+  if(!users.length){
+    profileEmpty.classList.remove("hidden");
+    return;
+  }
+  loginUsersCache = users;
+  profileSelectWrap.classList.remove("hidden");
+  profileSelect.innerHTML = users.map(u=>
+    `<option value="${u.id}">${escapeHtml(u.prenom||"")} ${escapeHtml(u.nom||"")} — ${escapeHtml((ROLES[u.role]||{}).label || u.role || "")}</option>`
+  ).join("");
+}
+
+document.getElementById("profile-continue-btn").addEventListener("click", ()=>{
+  const u = loginUsersCache.find(x=>x.id===profileSelect.value);
+  if(u) openPinStep(u);
+});
+
+function openPinStep(user){
+  hideAuthError();
+  selectedLoginUser = user;
+  pinBuffer = "";
+  pinConfirmStage = (DEMO_MODE ? !user.pin : !user.pinHash) ? "create" : null;
+  pinUserAvatar.style.background = roleColorOf(user);
+  pinUserAvatar.textContent = initialsOf(user);
+  pinUserName.textContent = `${user.prenom||""} ${user.nom||""}`.trim();
+  pinUserRole.textContent = (ROLES[user.role]||{}).label || user.role || "";
+  pinInstruction.textContent = pinConfirmStage==="create"
+    ? "Aucun PIN défini — créez votre code (6 chiffres)"
+    : "Entrez votre code PIN";
+  updatePinDots();
+  showStep("pin");
+}
+
+function updatePinDots(){
+  pinDotsWrap.querySelectorAll(".pin-dot").forEach((dot,i)=>dot.classList.toggle("filled", i<pinBuffer.length));
+}
+function shakePinDots(msg){
+  pinDotsWrap.classList.add("shake");
+  setTimeout(()=>pinDotsWrap.classList.remove("shake"), 400);
+  pinBuffer = "";
+  updatePinDots();
+  if(msg) showAuthError(msg);
+}
+
+document.getElementById("pin-keypad").addEventListener("click",(e)=>{
+  const btn = e.target.closest("button[data-k]");
+  if(btn){
+    if(pinBuffer.length>=6) return;
+    pinBuffer += btn.dataset.k;
+    updatePinDots();
+    if(pinBuffer.length===6) handlePinComplete();
+  }
+});
+document.getElementById("pin-del").addEventListener("click",()=>{
+  pinBuffer = pinBuffer.slice(0,-1);
+  updatePinDots();
+});
+document.getElementById("pin-back").addEventListener("click",()=>{
+  pinBuffer=""; selectedLoginUser=null; pinConfirmStage=null;
+  hideAuthError();
+  loadProfileStep();
+});
+
+async function handlePinComplete(){
+  hideAuthError();
+  const enteredPin = pinBuffer;
+  const user = selectedLoginUser;
+
+  if(pinConfirmStage==="create"){
+    // Première étape : mémoriser le PIN saisi, demander confirmation
+    pinConfirmStage = enteredPin;
+    pinBuffer = "";
+    updatePinDots();
+    pinInstruction.textContent = "Confirmez votre code PIN";
+    return;
+  }
+  if(pinConfirmStage && pinConfirmStage!=="create"){
+    // Deuxième étape : comparer à la première saisie
+    if(enteredPin !== pinConfirmStage){
+      pinConfirmStage = "create";
+      pinInstruction.textContent = "Les codes ne correspondent pas — recommencez";
+      shakePinDots();
+      return;
+    }
+    try{
+      await setUserPin(user, enteredPin);
+      selectAndEnter({ ...user, pin: enteredPin });
+    }catch(e){
+      console.error(e);
+      shakePinDots("Impossible d'enregistrer le PIN. Réessayez.");
+    }
+    return;
+  }
+
+  // Vérification normale
+  try{
+    let ok = false;
+    if(DEMO_MODE){
+      ok = user.pin === enteredPin;
+    }else{
+      const h = await hashPin(enteredPin, user.pinSalt||"");
+      ok = h === user.pinHash;
+    }
+    if(!ok){ shakePinDots("Code PIN incorrect."); return; }
+    selectAndEnter(user);
+  }catch(e){
+    console.error(e);
+    shakePinDots("Erreur de connexion. Réessayez.");
+  }
+}
+
+async function setUserPin(user, pin){
+  if(DEMO_MODE){
+    const store = demoStore();
+    const idx = store.users.findIndex(x=>x.id===user.id);
+    if(idx>-1){ store.users[idx].pin = pin; demoSave(store); }
+  }else{
+    const salt = randomSalt();
+    const hash = await hashPin(pin, salt);
+    await db.collection("users").doc(user.id).update({ pinHash: hash, pinSalt: salt });
+  }
+}
+
+function selectAndEnter(user){
+  currentUser = { uid: (!DEMO_MODE && auth.currentUser) ? auth.currentUser.uid : "demo" };
+  currentUserDoc = user;
+  sessionStorage.setItem("cmcd_active_profile", user.id);
+  enterApp();
+}
+
+document.getElementById("logout-btn").addEventListener("click", async ()=>{
+  sessionStorage.removeItem("cmcd_active_profile");
+  currentUser = null; currentUserDoc = null; selectedLoginUser = null; pinBuffer=""; pinConfirmStage=null;
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("auth-screen").classList.remove("hidden");
+  hideAuthError();
+  await loadProfileStep();
+});
+
+// Configuration initiale — création du premier compte administrateur
+document.getElementById("bs-submit").addEventListener("click", async ()=>{
+  hideAuthError();
+  const prenom = document.getElementById("bs-prenom").value.trim();
+  const nom = document.getElementById("bs-nom").value.trim();
+  const pin1 = document.getElementById("bs-pin1").value.trim();
+  const pin2 = document.getElementById("bs-pin2").value.trim();
+  if(!prenom || !nom){ showAuthError("Prénom et nom obligatoires."); return; }
+  if(!/^\d{6}$/.test(pin1)){ showAuthError("Le PIN doit contenir exactement 6 chiffres."); return; }
+  if(pin1 !== pin2){ showAuthError("Les deux codes PIN ne correspondent pas."); return; }
+  const btn = document.getElementById("bs-submit");
+  btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Création…`;
+  try{
+    await ensureAnonSession();
+    const salt = randomSalt();
+    const hash = await hashPin(pin1, salt);
+    const ref = await db.collection("users").add({
+      prenom, nom, role:"admin", service:"Direction", actif:true,
+      pinHash: hash, pinSalt: salt,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    selectAndEnter({ id: ref.id, prenom, nom, role:"admin", service:"Direction", actif:true });
+  }catch(e){
+    console.error(e);
+    showAuthError("Impossible de créer le compte. Vérifiez la configuration Firebase.");
+  }finally{
+    btn.disabled = false; btn.textContent = "Créer le compte administrateur";
+  }
+});
+
+// Auto-login (reprise de session sur cet onglet)
+async function tryAutoLogin(){
+  await initAuthScreen();
+}
+tryAutoLogin();
+
+/* -------------------------------------------------------------------------
+   5. ENTRÉE DANS L'APP — construction sidebar selon rôle
+------------------------------------------------------------------------- */
+function enterApp(){
+  document.getElementById("auth-screen").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+
+  const initials = ((currentUserDoc.prenom||"")[0]||"") + ((currentUserDoc.nom||"")[0]||"");
+  document.getElementById("side-avatar").textContent = initials.toUpperCase() || "?";
+  document.getElementById("side-user-name").textContent = `${currentUserDoc.prenom||""} ${currentUserDoc.nom||""}`.trim();
+  document.getElementById("side-user-role").textContent = (ROLES[currentUserDoc.role]||{}).label || currentUserDoc.role;
+
+  buildSideNav();
+  navigateTo(hasAccess("dashboard") ? "dashboard" : firstAccessibleModule());
+  loadAllData();
+}
+
+function firstAccessibleModule(){
+  for(const sec of NAV_SECTIONS){
+    for(const item of sec.items){
+      if(hasAccess(item.key)) return item.key;
+    }
+  }
+  return "dashboard";
+}
+
+function buildSideNav(){
+  const nav = document.getElementById("side-nav");
+  nav.innerHTML = "";
+  NAV_SECTIONS.forEach(section=>{
+    const visibleItems = section.items.filter(it=>hasAccess(it.key));
+    if(visibleItems.length===0) return;
+    const label = document.createElement("div");
+    label.className = "side-section-label";
+    label.textContent = section.label;
+    nav.appendChild(label);
+    visibleItems.forEach(item=>{
+      const el = document.createElement("div");
+      el.className = "side-item";
+      el.dataset.module = item.key;
+      el.innerHTML = `<span class="side-icon">${item.icon()}</span><span class="label">${item.label}</span>`;
+      el.addEventListener("click", ()=>navigateTo(item.key));
+      nav.appendChild(el);
+    });
+  });
+}
+
+document.getElementById("collapse-toggle").addEventListener("click", ()=>{
+  sidebarCollapsed = !sidebarCollapsed;
+  document.getElementById("sidebar").classList.toggle("collapsed", sidebarCollapsed);
+});
+
+function navigateTo(moduleKey){
+  if(!hasAccess(moduleKey)){
+    toast("Accès non autorisé pour votre rôle.", "error");
+    return;
+  }
+  currentModule = moduleKey;
+  document.querySelectorAll(".side-item").forEach(el=>{
+    el.classList.toggle("active", el.dataset.module===moduleKey);
+  });
+  const titles = {
+    dashboard:"Tableau de bord", accueil:"Accueil / Réception", patients:"Dossiers patients",
+    consultations:"Consultations", soins:"Soins infirmiers", laboratoire:"Laboratoire",
+    pharmacie:"Pharmacie", obstetrique:"Obstétrique", chirurgie:"Chirurgie",
+    caisse:"Caisse / Facturation", personnel:"Personnel / RH", rapports:"Rapports & statistiques",
+    admin:"Administration"
+  };
+  document.getElementById("topbar-title").textContent = titles[moduleKey] || moduleKey;
+  renderModule(moduleKey);
+}
+
+function renderModule(key){
+  const c = document.getElementById("content");
+  c.scrollTop = 0;
+  switch(key){
+    case "dashboard": return renderDashboard(c);
+    case "accueil": return renderAccueil(c);
+    case "patients": return renderPatients(c);
+    case "consultations": return renderConsultations(c);
+    case "soins": return renderSoins(c);
+    case "laboratoire": return renderLaboratoire(c);
+    case "pharmacie": return renderPharmacie(c);
+    case "obstetrique": return renderObstetrique(c);
+    case "chirurgie": return renderChirurgie(c);
+    case "caisse": return renderCaisse(c);
+    case "personnel": return renderPersonnel(c);
+    case "rapports": return renderRapports(c);
+    case "admin": return renderAdmin(c);
+    default: return renderComingSoon(c, key);
+  }
+}
+
+function renderComingSoon(c, key){
+  c.innerHTML = `
+    <div class="empty-state card card-pad" style="padding:56px 20px;">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6v6H9z"/></svg>
+      <h3>Module « ${key} » — en cours de développement</h3>
+      <p>Ce module fait partie du cahier des charges et sera livré dans une prochaine version.</p>
+    </div>`;
+}
+
+/* -------------------------------------------------------------------------
+   6. CHARGEMENT DES DONNÉES
+------------------------------------------------------------------------- */
+async function loadAllData(){
+  const cols=["patients","consultations","rdv","users","soins","laboratoire","pharmacie","obstetrique","chirurgie","factures","paiements","settings","audit","mouvementsStock"];
+  if(DEMO_MODE){ const st=demoStore(); cols.forEach(k=>CACHE[k]=st[k]||[]); }
+  else {
+    try{ const snaps=await Promise.all(cols.map(k=>db.collection(k).orderBy("createdAt","desc").limit(500).get().catch(()=>null)));
+      cols.forEach((k,i)=>CACHE[k]=snaps[i]?snaps[i].docs.map(d=>({id:d.id,...d.data()})):[]);
+    }catch(e){ console.warn("Chargement Firestore échoué :",e); }
+  }
+  if(currentModule) renderModule(currentModule);
+}
+
+// Écriture unifiée (Firestore ou démo)
+async function saveDoc(collection, data, id=null){
+  if(DEMO_MODE){
+    const store = demoStore();
+    if(!store[collection]) store[collection] = [];
+    if(id){
+      const idx = store[collection].findIndex(x=>x.id===id);
+      if(idx>-1) store[collection][idx] = {...store[collection][idx], ...data};
+    }else{
+      id = "id_" + Date.now() + "_" + Math.random().toString(36).slice(2,7);
+      store[collection].push({ id, ...data, createdAt: Date.now() });
+    }
+    demoSave(store);
+    return id;
+  }else{
+    if(id){
+      await db.collection(collection).doc(id).update(data);
+      return id;
+    }else{
+      const ref = await db.collection(collection).add({...data, createdAt: firebase.firestore.FieldValue.serverTimestamp()});
+      return ref.id;
+    }
+  }
+}
+
+function nextPatientId(){
+  if(DEMO_MODE){
+    const store = demoStore();
+    store.seq = store.seq || {patient:0};
+    store.seq.patient += 1;
+    demoSave(store);
+    const year = new Date().getFullYear();
+    return `CMCD-${year}-${String(store.seq.patient).padStart(5,"0")}`;
+  }
+  // En prod Firestore : utiliser un compteur transactionnel dédié (collection 'counters').
+  const year = new Date().getFullYear();
+  return `CMCD-${year}-${String(CACHE.patients.length+1).padStart(5,"0")}`;
+}
+
+/* -------------------------------------------------------------------------
+   7. MODULE M01 — TABLEAU DE BORD
+------------------------------------------------------------------------- */
+function renderDashboard(c){
+  const today = new Date();
+  const todayStr = today.toLocaleDateString("fr-FR", {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+  const consultToday = CACHE.consultations.filter(isToday).length;
+  const patientsToday = CACHE.patients.filter(isToday).length;
+  const totalPatients = CACHE.patients.length;
+  const rdvUpcoming = CACHE.rdv.filter(r=>new Date(r.date) >= today).length;
+
+  const labEnAttente = CACHE.laboratoire.filter(x=>x.statut!=="termine").length;
+  const stockFaible = CACHE.pharmacie.filter(x=>Number(x.stock||0)<=Number(x.seuil||0)).length;
+  const chirurgieAVenir = CACHE.chirurgie.filter(x=>x.date && new Date(x.date)>=today && x.statut!=="termine" && x.statut!=="annule").length;
+  const recetteJour = CACHE.paiements.filter(isToday).reduce((n,x)=>n+Number(x.montant||0),0);
+
+  const showModule = (key)=>hasAccess(key);
+
+  c.innerHTML = `
+    <div class="page-head">
+      <div>
+        <h2>Bonjour, ${escapeHtml(currentUserDoc.prenom||"")} 👋</h2>
+        <p style="text-transform:capitalize;">${todayStr}</p>
+      </div>
+      <div class="flex gap-8">
+        <button class="btn btn-outline" id="dash-filter-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+          Aujourd'hui
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-4" style="margin-bottom:16px;">
+      ${kpiCard("Consultations du jour", consultToday, "up", icoStetho(), "var(--accent)", "var(--accent-tint)")}
+      ${kpiCard("Nouveaux patients", patientsToday, "up", icoFolder(), "var(--primary)", "var(--primary-tint)")}
+      ${kpiCard("Patients enregistrés", totalPatients, null, icoUsers(), "var(--primary)", "var(--primary-tint)")}
+      ${kpiCard("Rendez-vous à venir", rdvUpcoming, null, icoChart(), "var(--warn)", "var(--warn-tint)")}
+    </div>
+
+    <div class="grid grid-4" style="margin-bottom:20px;">
+      ${showModule("laboratoire") ? kpiCard("Analyses en attente", labEnAttente, null, icoFlask(), "var(--warn)", "var(--warn-tint)") : ""}
+      ${showModule("pharmacie") ? kpiCard("Articles en stock faible", stockFaible, null, icoPill(), stockFaible>0?"var(--danger)":"var(--accent)", stockFaible>0?"var(--danger-tint)":"var(--accent-tint)") : ""}
+      ${showModule("chirurgie") ? kpiCard("Interventions à venir", chirurgieAVenir, null, icoScalpel(), "var(--primary)", "var(--primary-tint)") : ""}
+      ${showModule("caisse") ? kpiCard("Recette du jour", recetteJour.toLocaleString("fr-FR")+" GNF", null, icoCash(), "var(--accent)", "var(--accent-tint)") : ""}
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card card-pad" style="grid-column:span 2;">
+        <div class="section-title">Activité récente</div>
+        <p class="section-sub">Derniers événements enregistrés tous services confondus</p>
+        ${renderRecentActivity()}
+      </div>
+      <div class="card card-pad">
+        <div class="section-title">Alertes</div>
+        <p class="section-sub">Éléments nécessitant votre attention</p>
+        ${renderAlerts()}
+      </div>
+    </div>
+  `;
+  document.getElementById("dash-filter-btn")?.addEventListener("click", ()=>toast("Filtres de période — à venir avec le module Rapports.", "info"));
+}
+
+function kpiCard(label, value, trend, icon, color, tint){
+  return `
+    <div class="card kpi-card">
+      <div class="kpi-top">
+        <div class="kpi-icon" style="background:${tint};color:${color};">${icon}</div>
+      </div>
+      <div class="kpi-value">${value}</div>
+      <div class="kpi-label">${label}</div>
+    </div>`;
+}
+
+function renderRecentActivity(){
+  const events = [];
+  CACHE.patients.forEach(p=>events.push({ts:p.createdAt, icon:icoFolder(), title:`${p.prenom||""} ${p.nom||""}`.trim(), sub:`${p.patientId||""} · Dossier créé`, badge:"Patient"}));
+  CACHE.consultations.forEach(x=>events.push({ts:x.createdAt, icon:icoStetho(), title:patientName(x.patientId), sub:`${x.motif||"Consultation"}${x.diagnostic?" · Diagnostic posé":""}`, badge:x.diagnostic?"Consultation":"Accueil"}));
+  if(hasAccess("laboratoire")) CACHE.laboratoire.forEach(x=>events.push({ts:x.createdAt, icon:icoFlask(), title:patientName(x.patientId), sub:`${x.examen||"Analyse"} · ${x.statut==='termine'?'Résultat disponible':'En cours'}`, badge:"Labo"}));
+  if(hasAccess("pharmacie")) CACHE.pharmacie.forEach(x=>events.push({ts:x.createdAt, icon:icoPill(), title:x.nom||"Médicament", sub:`Stock : ${x.stock??0}`, badge:"Pharmacie"}));
+  if(hasAccess("chirurgie")) CACHE.chirurgie.forEach(x=>events.push({ts:x.createdAt, icon:icoScalpel(), title:patientName(x.patientId), sub:x.intervention||"Intervention", badge:"Chirurgie"}));
+  if(hasAccess("caisse")) CACHE.factures.forEach(x=>events.push({ts:x.createdAt, icon:icoCash(), title:patientName(x.patientId), sub:`${x.objet||"Facture"} · ${Number(x.montant||0).toLocaleString("fr-FR")} GNF`, badge:"Caisse"}));
+
+  const items = events.sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,8);
+  if(items.length===0){
+    return emptyState("Aucune activité récente", "Les derniers événements de l'établissement apparaîtront ici.");
+  }
+  return items.map(e=>`
+    <div class="list-row">
+      <div class="avatar-sm">${e.icon}</div>
+      <div class="list-row-main">
+        <div class="list-row-title">${escapeHtml(e.title||"—")}</div>
+        <div class="list-row-sub">${escapeHtml(e.sub||"")} · ${timeAgo(e.ts)}</div>
+      </div>
+      <span class="badge badge-neutral">${e.badge}</span>
+    </div>
+  `).join("");
+}
+
+function renderAlerts(){
+  const a=[];
+  CACHE.pharmacie.filter(x=>Number(x.stock||0)<=Number(x.seuil||0)).slice(0,5).forEach(x=>a.push({text:`Stock faible : ${x.nom} (${x.stock||0})`,type:"danger"}));
+  CACHE.pharmacie.filter(x=>x.expiration && (new Date(x.expiration)-Date.now())<30*24*3600*1000 && (new Date(x.expiration)-Date.now())>0).slice(0,5).forEach(x=>a.push({text:`Péremption proche : ${x.nom} (${x.expiration})`,type:"warn"}));
+  CACHE.laboratoire.filter(x=>x.priorite==="urgente"&&x.statut!=="termine").slice(0,5).forEach(x=>a.push({text:`Analyse urgente : ${patientName(x.patientId)} — ${x.examen}`,type:"warn"}));
+  CACHE.laboratoire.filter(x=>x.resultat&&!x.valide).slice(0,5).forEach(x=>a.push({text:`Résultat en attente de validation : ${patientName(x.patientId)} — ${x.examen}`,type:"warn"}));
+  if(!a.length)a.push({text:CACHE.patients.length?"Aucune alerte active.":"Aucun patient enregistré pour le moment.",type:"neutral"});
+  return a.map(x=>`<div class="list-row"><span class="badge ${x.type==='danger'?'badge-danger':x.type==='warn'?'badge-warn':'badge-neutral'}">${x.type==='danger'?'Alerte':x.type==='warn'?'Urgent':'Info'}</span><div class="list-row-main"><div class="list-row-title" style="font-weight:500">${escapeHtml(x.text)}</div></div></div>`).join("");
+}
+/* -------------------------------------------------------------------------
+   8. MODULE M02 — ACCUEIL / RÉCEPTION
+------------------------------------------------------------------------- */
+function renderAccueil(c){
+  c.innerHTML = `
+    <div class="page-head">
+      <div>
+        <h2>Accueil / Réception</h2>
+        <p>Enregistrement des patients, orientation et file d'attente</p>
+      </div>
+      <button class="btn btn-primary" id="new-arrival-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Nouvel accueil
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-pad" style="border-bottom:1px solid var(--line);">
+        <div class="section-title mb-0">File d'attente du jour</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Patient</th><th>Motif</th><th>Service</th><th>Heure</th><th>Statut</th><th></th>
+          </tr></thead>
+          <tbody id="accueil-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+  renderAccueilTable();
+  document.getElementById("new-arrival-btn").addEventListener("click", openNewArrivalModal);
+}
+
+function renderAccueilTable(){
+  const body = document.getElementById("accueil-table-body");
+  const todays = CACHE.consultations.filter(x=>isToday(x) && x.statutAccueil);
+  if(todays.length===0){
+    body.innerHTML = `<tr><td colspan="6">${emptyState("Aucun accueil aujourd'hui", "Cliquez sur « Nouvel accueil » pour enregistrer une arrivée.")}</td></tr>`;
+    return;
+  }
+  body.innerHTML = todays.map(a=>{
+    const p = CACHE.patients.find(x=>x.id===a.patientId) || {};
+    return `<tr>
+      <td>
+        <div class="pat-name-cell">
+          <div class="avatar-sm">${initialsOf(p)}</div>
+          <div><div style="font-weight:600;">${escapeHtml(p.prenom||"")} ${escapeHtml(p.nom||"")}</div>
+          <div class="pat-id">${escapeHtml(p.patientId||"")}</div></div>
+        </div>
+      </td>
+      <td>${escapeHtml(a.motif||"—")}</td>
+      <td>${escapeHtml(a.service||"—")}</td>
+      <td>${a.heure||"—"}</td>
+      <td>${statutBadge(a.statutAccueil)}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="openPatientDetail('${p.id}')">Voir</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function statutBadge(status){
+  const map = {
+    "en_attente": {label:"En attente", cls:"badge-warn"},
+    "en_cours": {label:"En cours", cls:"badge-neutral"},
+    "termine": {label:"Terminé", cls:"badge-accent"},
+  };
+  const s = map[status] || {label:status||"—", cls:"badge-neutral"};
+  return `<span class="badge ${s.cls}">${s.label}</span>`;
+}
+
+function openNewArrivalModal(){
+  const services = ["Consultation générale","Laboratoire","Pharmacie","Obstétrique","Chirurgie","Soins infirmiers"];
+  const patientOptions = CACHE.patients.map(p=>`<option value="${p.id}">${escapeHtml(p.prenom)} ${escapeHtml(p.nom)} — ${escapeHtml(p.patientId)}</option>`).join("");
+
+  openModal("Nouvel accueil patient", `
+    <div class="form-row">
+      <label>Patient</label>
+      <select class="input" id="arr-patient">
+        <option value="">— Sélectionner un patient existant —</option>
+        ${patientOptions}
+      </select>
+      <div class="hint">Patient introuvable ? <a href="#" id="arr-create-patient-link">Créer un nouveau dossier patient</a>.</div>
+    </div>
+    <div class="form-cols-2">
+      <div class="form-row">
+        <label>Motif de la visite</label>
+        <input type="text" class="input" id="arr-motif" placeholder="Ex : douleur abdominale">
+      </div>
+      <div class="form-row">
+        <label>Service demandé</label>
+        <select class="input" id="arr-service">
+          ${services.map(s=>`<option>${s}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Heure d'arrivée</label>
+      <input type="time" class="input" id="arr-heure" value="${new Date().toTimeString().slice(0,5)}">
+    </div>
+  `, [
+    {label:"Annuler", cls:"btn-outline", action:closeModal},
+    {label:"Enregistrer l'accueil", cls:"btn-primary", action:submitNewArrival}
+  ]);
+
+  document.getElementById("arr-create-patient-link").addEventListener("click",(e)=>{
+    e.preventDefault(); closeModal(); openPatientFormModal();
+  });
+}
+
+async function submitNewArrival(){
+  const patientId = document.getElementById("arr-patient").value;
+  const motif = document.getElementById("arr-motif").value.trim();
+  const service = document.getElementById("arr-service").value;
+  const heure = document.getElementById("arr-heure").value;
+
+  if(!patientId){ toast("Veuillez sélectionner un patient.", "error"); return; }
+  if(!motif){ toast("Le motif de la visite est requis.", "error"); return; }
+
+  await saveDoc("consultations", {
+    patientId, motif, service, heure,
+    statutAccueil: "en_attente",
+    statut: "accueil",
+    creePar: currentUserDoc.id || currentUser.uid,
+  });
+
+  toast("Accueil enregistré avec succès.", "success");
+  closeModal();
+  await loadAllData();
+  renderAccueilTable();
+}
+
+/* -------------------------------------------------------------------------
+   9. MODULE M03 — DOSSIER PATIENT
+------------------------------------------------------------------------- */
+function renderPatients(c){
+  c.innerHTML = `
+    <div class="page-head">
+      <div>
+        <h2>Dossiers patients</h2>
+        <p>${CACHE.patients.length} patient(s) enregistré(s)</p>
+      </div>
+      <button class="btn btn-primary" id="new-patient-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Nouveau patient
+      </button>
+    </div>
+
+    <div class="card card-pad" style="margin-bottom:16px;">
+      <input type="text" class="input" id="patient-search" placeholder="Rechercher par nom, identifiant ou téléphone…">
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Patient</th><th>Identifiant</th><th>Téléphone</th><th>Âge</th><th>Sexe</th><th>Dernière visite</th><th></th>
+          </tr></thead>
+          <tbody id="patients-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+  renderPatientsTable(CACHE.patients);
+  document.getElementById("new-patient-btn").addEventListener("click", ()=>openPatientFormModal());
+  document.getElementById("patient-search").addEventListener("input", (e)=>{
+    const q = e.target.value.toLowerCase().trim();
+    const filtered = CACHE.patients.filter(p=>
+      (p.nom||"").toLowerCase().includes(q) ||
+      (p.prenom||"").toLowerCase().includes(q) ||
+      (p.patientId||"").toLowerCase().includes(q) ||
+      (p.telephone||"").includes(q)
+    );
+    renderPatientsTable(filtered);
+  });
+}
+
+function renderPatientsTable(list){
+  const body = document.getElementById("patients-table-body");
+  if(list.length===0){
+    body.innerHTML = `<tr><td colspan="7">${emptyState("Aucun patient trouvé", "Créez un nouveau dossier patient pour commencer.")}</td></tr>`;
+    return;
+  }
+  body.innerHTML = [...list].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(p=>{
+    const lastConsult = CACHE.consultations.filter(x=>x.patientId===p.id).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+    return `<tr>
+      <td>
+        <div class="pat-name-cell">
+          <div class="avatar-sm">${initialsOf(p)}</div>
+          <div style="font-weight:600;">${escapeHtml(p.prenom||"")} ${escapeHtml(p.nom||"")}</div>
+        </div>
+      </td>
+      <td class="mono text-sm">${escapeHtml(p.patientId||"")}</td>
+      <td>${escapeHtml(p.telephone||"—")}</td>
+      <td>${ageOf(p.dateNaissance)}</td>
+      <td>${p.sexe||"—"}</td>
+      <td>${lastConsult ? timeAgo(lastConsult.createdAt) : "—"}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="openPatientDetail('${p.id}')">Ouvrir</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function openPatientFormModal(){
+  openModal("Nouveau dossier patient", `
+    <div class="form-cols-2">
+      <div class="form-row"><label>Prénom *</label><input type="text" class="input" id="pf-prenom" required></div>
+      <div class="form-row"><label>Nom *</label><input type="text" class="input" id="pf-nom" required></div>
+    </div>
+    <div class="form-cols-3">
+      <div class="form-row"><label>Date de naissance</label><input type="date" class="input" id="pf-dob"></div>
+      <div class="form-row"><label>Sexe</label>
+        <select class="input" id="pf-sexe"><option value="F">Féminin</option><option value="M">Masculin</option></select>
+      </div>
+      <div class="form-row"><label>Téléphone</label><input type="tel" class="input" id="pf-tel" placeholder="6XX XX XX XX"></div>
+    </div>
+    <div class="form-row"><label>Adresse</label><input type="text" class="input" id="pf-adresse"></div>
+    <div class="form-cols-2">
+      <div class="form-row"><label>Contact d'urgence — nom</label><input type="text" class="input" id="pf-urgence-nom"></div>
+      <div class="form-row"><label>Contact d'urgence — téléphone</label><input type="tel" class="input" id="pf-urgence-tel"></div>
+    </div>
+    <div class="form-row"><label>Allergies connues</label><textarea class="input" id="pf-allergies" placeholder="Le cas échéant"></textarea></div>
+  `, [
+    {label:"Annuler", cls:"btn-outline", action:closeModal},
+    {label:"Créer le dossier", cls:"btn-primary", action:submitNewPatient}
+  ]);
+}
+
+async function submitNewPatient(){
+  const prenom = document.getElementById("pf-prenom").value.trim();
+  const nom = document.getElementById("pf-nom").value.trim();
+  if(!prenom || !nom){ toast("Le prénom et le nom sont obligatoires.", "error"); return; }
+
+  // Vérification de doublon simple (M02 — éviter les doublons)
+  const dup = CACHE.patients.find(p=>
+    (p.prenom||"").toLowerCase()===prenom.toLowerCase() &&
+    (p.nom||"").toLowerCase()===nom.toLowerCase()
+  );
+  if(dup && !confirm(`Un patient nommé ${prenom} ${nom} existe déjà (${dup.patientId}). Créer quand même un nouveau dossier ?`)){
+    return;
+  }
+
+  const patientId = nextPatientId();
+  await saveDoc("patients", {
+    patientId,
+    prenom, nom,
+    dateNaissance: document.getElementById("pf-dob").value || null,
+    sexe: document.getElementById("pf-sexe").value,
+    telephone: document.getElementById("pf-tel").value.trim(),
+    adresse: document.getElementById("pf-adresse").value.trim(),
+    contactUrgenceNom: document.getElementById("pf-urgence-nom").value.trim(),
+    contactUrgenceTel: document.getElementById("pf-urgence-tel").value.trim(),
+    allergies: document.getElementById("pf-allergies").value.trim(),
+    creePar: currentUserDoc.id || currentUser.uid,
+  });
+
+  toast(`Dossier créé : ${patientId}`, "success");
+  closeModal();
+  await loadAllData();
+  if(currentModule==="patients") renderPatientsTable(CACHE.patients);
+}
+
+function openPatientDetail(patientId){
+  const p = CACHE.patients.find(x=>x.id===patientId);
+  if(!p){ toast("Patient introuvable.", "error"); return; }
+  const history = CACHE.consultations.filter(x=>x.patientId===patientId).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+
+  openModal(`${p.prenom} ${p.nom}`, `
+    <div class="flex gap-8" style="margin-bottom:16px;flex-wrap:wrap;">
+      <span class="badge badge-neutral">${escapeHtml(p.patientId)}</span>
+      <span class="badge badge-neutral">${ageOf(p.dateNaissance)} ans</span>
+      <span class="badge badge-neutral">${p.sexe==='F'?'Féminin':'Masculin'}</span>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:18px;">
+      <div>
+        <div class="text-sm text-soft" style="margin-bottom:2px;">Téléphone</div>
+        <div style="font-weight:600;">${escapeHtml(p.telephone||"—")}</div>
+      </div>
+      <div>
+        <div class="text-sm text-soft" style="margin-bottom:2px;">Adresse</div>
+        <div style="font-weight:600;">${escapeHtml(p.adresse||"—")}</div>
+      </div>
+      <div>
+        <div class="text-sm text-soft" style="margin-bottom:2px;">Contact d'urgence</div>
+        <div style="font-weight:600;">${escapeHtml(p.contactUrgenceNom||"—")} ${p.contactUrgenceTel?('· '+escapeHtml(p.contactUrgenceTel)):''}</div>
+      </div>
+      <div>
+        <div class="text-sm text-soft" style="margin-bottom:2px;">Allergies</div>
+        <div style="font-weight:600;color:${p.allergies?'var(--danger)':'var(--ink)'};">${escapeHtml(p.allergies||"Aucune renseignée")}</div>
+      </div>
+    </div>
+    <div class="section-title" style="font-size:13.5px;">Historique</div>
+    <div style="max-height:220px;overflow-y:auto;">
+      ${history.length===0 ? emptyState("Aucun historique", "Ce patient n'a pas encore de consultation enregistrée.") :
+        history.map(h=>`
+          <div class="list-row">
+            <div class="list-row-main">
+              <div class="list-row-title">${escapeHtml(h.motif||"Consultation")}</div>
+              <div class="list-row-sub">${escapeHtml(h.service||"")} · ${timeAgo(h.createdAt)}</div>
+            </div>
+            ${statutBadge(h.statutAccueil)}
+          </div>
+        `).join("")}
+    </div>
+  `, [
+    {label:"Fermer", cls:"btn-outline", action:closeModal},
+    {label:"Nouvelle consultation", cls:"btn-primary", action:()=>{closeModal(); openConsultationFormModal(patientId);}}
+  ]);
+}
+
+/* -------------------------------------------------------------------------
+   10. MODULE M04 — CONSULTATIONS
+------------------------------------------------------------------------- */
+function renderConsultations(c){
+  c.innerHTML = `
+    <div class="page-head">
+      <div>
+        <h2>Consultations</h2>
+        <p>File des consultations et création de dossiers cliniques</p>
+      </div>
+      <button class="btn btn-primary" id="new-consult-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Nouvelle consultation
+      </button>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="attente">En attente</div>
+      <div class="tab" data-tab="toutes">Toutes</div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Patient</th><th>Motif</th><th>Diagnostic</th><th>Médecin</th><th>Statut</th><th></th>
+          </tr></thead>
+          <tbody id="consult-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+  renderConsultTable("attente");
+  document.getElementById("new-consult-btn").addEventListener("click", ()=>openConsultationFormModal());
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.addEventListener("click", ()=>{
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      t.classList.add("active");
+      renderConsultTable(t.dataset.tab);
+    });
+  });
+}
+
+function renderConsultTable(filter){
+  const body = document.getElementById("consult-table-body");
+  let list = [...CACHE.consultations].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(filter==="attente") list = list.filter(x=>x.statutAccueil==="en_attente" || !x.diagnostic);
+
+  if(list.length===0){
+    body.innerHTML = `<tr><td colspan="6">${emptyState("Aucune consultation", "Aucune consultation à afficher pour ce filtre.")}</td></tr>`;
+    return;
+  }
+  body.innerHTML = list.map(cons=>{
+    const p = CACHE.patients.find(x=>x.id===cons.patientId) || {};
+    return `<tr>
+      <td>
+        <div class="pat-name-cell">
+          <div class="avatar-sm">${initialsOf(p)}</div>
+          <div>${escapeHtml(p.prenom||"")} ${escapeHtml(p.nom||"")}</div>
+        </div>
+      </td>
+      <td>${escapeHtml(cons.motif||"—")}</td>
+      <td>${escapeHtml(cons.diagnostic||"—")}</td>
+      <td>${escapeHtml(cons.medecin||"—")}</td>
+      <td>${statutBadge(cons.diagnostic?"termine":(cons.statutAccueil||"en_attente"))}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="openConsultationFormModal('${cons.patientId}','${cons.id}')">Ouvrir</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function openConsultationFormModal(patientId=null, consultId=null){
+  const existing = consultId ? CACHE.consultations.find(x=>x.id===consultId) : null;
+  const patientOptions = CACHE.patients.map(p=>`<option value="${p.id}" ${p.id===patientId?'selected':''}>${escapeHtml(p.prenom)} ${escapeHtml(p.nom)} — ${escapeHtml(p.patientId)}</option>`).join("");
+  const locked = existing && existing.verrouille;
+
+  openModal(existing ? "Consultation" : "Nouvelle consultation", `
+    ${locked ? `<div class="locked-banner">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Cette consultation est validée et verrouillée. Toute modification sera tracée.
+    </div>` : ""}
+    <div class="form-row">
+      <label>Patient</label>
+      <select class="input" id="cf-patient" ${patientId?'disabled':''}>
+        <option value="">— Sélectionner —</option>
+        ${patientOptions}
+      </select>
+    </div>
+    <div class="form-row"><label>Motif de consultation</label>
+      <input type="text" class="input" id="cf-motif" value="${escapeHtml(existing?.motif||"")}">
+    </div>
+    <div class="form-cols-2">
+      <div class="form-row"><label>Constantes (TA, T°, pouls…)</label>
+        <input type="text" class="input" id="cf-constantes" value="${escapeHtml(existing?.constantes||"")}" placeholder="Ex : TA 120/80, T° 37.2">
+      </div>
+      <div class="form-row"><label>Médecin</label>
+        <input type="text" class="input" id="cf-medecin" value="${escapeHtml(existing?.medecin || (currentUserDoc.role==='medecin' ? (currentUserDoc.prenom+' '+currentUserDoc.nom) : ''))}">
+      </div>
+    </div>
+    <div class="form-row"><label>Observations</label>
+      <textarea class="input" id="cf-observations">${escapeHtml(existing?.observations||"")}</textarea>
+    </div>
+    <div class="form-row"><label>Diagnostic</label>
+      <textarea class="input" id="cf-diagnostic">${escapeHtml(existing?.diagnostic||"")}</textarea>
+    </div>
+    <div class="form-row"><label>Conduite à tenir</label>
+      <textarea class="input" id="cf-conduite" placeholder="Orientation, recommandations générales…">${escapeHtml(existing?.conduite||"")}</textarea>
+    </div>
+    ${(!locked && ["admin","medecin"].includes(currentUserDoc.role)) ? `
+    <div class="form-row" style="border-top:1px solid var(--line);padding-top:14px;">
+      <label>Demandes d'analyses de laboratoire</label>
+      <div id="cf-lab-list"></div>
+      <button type="button" class="btn btn-outline btn-sm" id="cf-add-lab" style="margin-top:6px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Ajouter un examen
+      </button>
+      <div class="hint">Chaque examen ajouté crée automatiquement une demande dans le module Laboratoire.</div>
+    </div>` : ""}
+  `, [
+    {label:"Annuler", cls:"btn-outline", action:closeModal},
+    {label: existing ? "Enregistrer" : "Créer la consultation", cls:"btn-primary", action:()=>submitConsultation(existing?.id)}
+  ]);
+
+  if(!locked && ["admin","medecin"].includes(currentUserDoc.role)){
+    const labList = document.getElementById("cf-lab-list");
+    const addLabRow = (val="", prio="normale")=>{
+      const row = document.createElement("div");
+      row.className = "form-cols-2";
+      row.style.marginTop = "6px";
+      row.innerHTML = `
+        <input type="text" class="input cf-lab-examen" placeholder="Ex : NFS, glycémie…" value="${escapeHtml(val)}">
+        <div class="flex gap-8">
+          <select class="input cf-lab-prio"><option value="normale" ${prio==='normale'?'selected':''}>Normale</option><option value="urgente" ${prio==='urgente'?'selected':''}>Urgente</option></select>
+          <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.form-cols-2').remove()">✕</button>
+        </div>`;
+      labList.appendChild(row);
+    };
+    document.getElementById("cf-add-lab").addEventListener("click", ()=>addLabRow());
+  }
+}
+
+async function submitConsultation(existingId){
+  const patientSel = document.getElementById("cf-patient");
+  const pid = patientSel.value || patientSel.getAttribute("value");
+  const finalPatientId = document.getElementById("cf-patient").value;
+  if(!finalPatientId && !existingId){ toast("Veuillez sélectionner un patient.", "error"); return; }
+
+  const diagnostic = document.getElementById("cf-diagnostic").value.trim();
+  const data = {
+    patientId: finalPatientId || undefined,
+    motif: document.getElementById("cf-motif").value.trim(),
+    constantes: document.getElementById("cf-constantes").value.trim(),
+    medecin: document.getElementById("cf-medecin").value.trim(),
+    observations: document.getElementById("cf-observations").value.trim(),
+    diagnostic,
+    conduite: document.getElementById("cf-conduite").value.trim(),
+    verrouille: !!diagnostic, // verrouillage à la validation du diagnostic (règle de gestion)
+    statutAccueil: diagnostic ? "termine" : "en_cours",
+  };
+  Object.keys(data).forEach(k=>data[k]===undefined && delete data[k]);
+
+  const finalId = await saveDoc("consultations", data, existingId||null);
+
+  // Création des demandes d'analyses labo réellement liées à la consultation
+  const patientForLab = finalPatientId || (existingId && CACHE.consultations.find(x=>x.id===existingId)?.patientId);
+  const labRows = document.querySelectorAll("#cf-lab-list .form-cols-2");
+  let labCount = 0;
+  for(const row of labRows){
+    const examen = row.querySelector(".cf-lab-examen").value.trim();
+    const priorite = row.querySelector(".cf-lab-prio").value;
+    if(examen && patientForLab){
+      await saveDoc("laboratoire", {
+        patientId: patientForLab,
+        consultationId: finalId,
+        examen, priorite,
+        statut: "en_attente",
+        demandePar: `${currentUserDoc.prenom||""} ${currentUserDoc.nom||""}`.trim(),
+      });
+      labCount++;
+    }
+  }
+
+  toast(
+    existingId
+      ? `Consultation mise à jour.${labCount?` ${labCount} demande(s) labo créée(s).`:''}`
+      : `Consultation créée.${labCount?` ${labCount} demande(s) labo créée(s).`:''}`,
+    "success"
+  );
+  closeModal();
+  await loadAllData();
+  if(currentModule==="consultations") renderConsultTable("attente");
+}
+
+/* -------------------------------------------------------------------------
+   11. MODAL, TOAST — utilitaires UI
+------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------
+   11. MODULES M05-M13
+-------------------------------------------------------------------------- */
+function patientOptionsHtml(selected=""){
+  return `<option value="">— Sélectionner un patient —</option>`+CACHE.patients.map(p=>`<option value="${p.id}" ${p.id===selected?'selected':''}>${escapeHtml(p.prenom)} ${escapeHtml(p.nom)} — ${escapeHtml(p.patientId)}</option>`).join("");
+}
+function patientName(id){const p=CACHE.patients.find(x=>x.id===id);return p?`${p.prenom||""} ${p.nom||""}`.trim():"Patient inconnu";}
+function mh(t,s,b,l){return `<div class="page-head"><div><h2>${t}</h2><p>${s}</p></div>${b?`<button class="btn btn-primary" id="${b}">＋ ${l}</button>`:""}</div>`;}
+function mt(n,t,s){return `<tr><td colspan="${n}">${emptyState(t,s)}</td></tr>`;}
+function bindSimpleModal({title,id,fields,collection,required,label="Enregistrer"}){
+  const x=id?CACHE[collection].find(a=>a.id===id):null;
+  openModal(title,fields(x),[{label:"Annuler",cls:"btn-outline",action:closeModal},{label,cls:"btn-primary",action:async()=>{
+    const d={}; document.querySelectorAll("[data-mf]").forEach(e=>d[e.dataset.mf]=e.value.trim());
+    if(required.some(k=>!d[k])){toast("Veuillez renseigner les champs obligatoires.","error");return;}
+    await saveDoc(collection,d,id);closeModal();toast("Enregistrement effectué.","success");await loadAllData();
+  }}]);
+}
+function renderSoins(c){c.innerHTML=mh("Soins infirmiers","Constantes, soins et transmissions","new-soin","Nouveau soin")+`<div class="card"><div class="table-wrap"><table><thead><tr><th>Patient</th><th>Soin</th><th>Constantes</th><th>Transmission</th><th>Infirmier</th><th>Statut</th><th></th></tr></thead><tbody id="soins-body"></tbody></table></div></div>`;const b=document.getElementById("soins-body"),a=[...CACHE.soins].sort((x,y)=>(y.createdAt||0)-(x.createdAt||0));b.innerHTML=a.length?a.map(x=>`<tr><td>${escapeHtml(patientName(x.patientId))}</td><td>${escapeHtml(x.type)}</td><td>${escapeHtml(x.constantes||"—")}</td><td>${escapeHtml(x.observation||"—")}</td><td>${escapeHtml(x.infirmier||"—")}</td><td>${statutBadge(x.statut||"termine")}</td><td><button class="btn btn-outline btn-sm" onclick="openSoins('${x.id}')">Ouvrir</button></td></tr>`).join(""):mt(7,"Aucun soin","Aucun soin infirmier enregistré.");document.getElementById("new-soin").onclick=()=>openSoins();}
+function openSoins(id=null){const x=id?CACHE.soins.find(a=>a.id===id):null;openModal(x?"Dossier de soins":"Nouveau soin",`<div class="form-row"><label>Patient *</label><select class="input" data-mf="patientId">${patientOptionsHtml(x?.patientId||"")}</select></div><div class="form-cols-2"><div class="form-row"><label>Type de soin *</label><input class="input" data-mf="type" value="${escapeHtml(x?.type||"")}"></div><div class="form-row"><label>Infirmier(ère)</label><input class="input" data-mf="infirmier" value="${escapeHtml(x?.infirmier||"")}"></div></div><div class="form-row"><label>Constantes</label><input class="input" data-mf="constantes" value="${escapeHtml(x?.constantes||"")}" placeholder="TA, T°, pouls, SpO₂…"></div><div class="form-row"><label>Observation / transmission</label><textarea class="input" data-mf="observation">${escapeHtml(x?.observation||"")}</textarea></div><div class="form-row"><label>Statut</label><select class="input" data-mf="statut"><option value="en_cours">En cours</option><option value="termine" ${!x||x?.statut==='termine'?'selected':''}>Terminé</option></select></div>`,[{label:"Annuler",cls:"btn-outline",action:closeModal},{label:"Enregistrer",cls:"btn-primary",action:async()=>{const d={};document.querySelectorAll('[data-mf]').forEach(e=>d[e.dataset.mf]=e.value.trim());if(!d.patientId||!d.type){toast("Patient et type obligatoires.","error");return;}await saveDoc("soins",d,id);closeModal();toast("Soin enregistré.","success");await loadAllData();}}]);}
+/* -------------------------------------------------------------------------
+   M06 — LABORATOIRE (validation verrouillée des résultats)
+------------------------------------------------------------------------- */
+function renderLaboratoire(c){
+  c.innerHTML = mh("Laboratoire", "Demandes d'examens, saisie et validation des résultats", "new-lab", "Nouvelle demande") + `
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Patient</th><th>Examen</th><th>Priorité</th><th>Résultat</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="lab-body"></tbody>
+        </table>
+      </div>
+    </div>`;
+  renderLabTable();
+  document.getElementById("new-lab").onclick = () => openLab();
+}
+
+function renderLabTable(){
+  const body = document.getElementById("lab-body");
+  const list = [...CACHE.laboratoire].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(list.length===0){ body.innerHTML = mt(6, "Aucune demande", "Aucune analyse enregistrée."); return; }
+  body.innerHTML = list.map(x=>`
+    <tr>
+      <td>${escapeHtml(patientName(x.patientId))}</td>
+      <td>${escapeHtml(x.examen)}</td>
+      <td>${x.priorite==='urgente' ? '<span class="badge badge-danger">Urgente</span>' : '<span class="badge badge-neutral">Normale</span>'}</td>
+      <td>${x.valide ? '<span class="badge badge-accent">Validé</span>' : escapeHtml(x.resultat ? 'Saisi — à valider' : '—')}</td>
+      <td>${statutBadge(x.valide ? 'termine' : (x.resultat ? 'en_cours' : (x.statut||'en_attente')))}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="openLab('${x.id}')">Ouvrir</button></td>
+    </tr>`).join("");
+}
+
+function openLab(id=null){
+  const x = id ? CACHE.laboratoire.find(a=>a.id===id) : null;
+  const locked = !!(x && x.valide);
+  const canValidate = ["admin","laborantin"].includes(currentUserDoc.role);
+
+  openModal(x ? "Demande laboratoire" : "Nouvelle demande laboratoire", `
+    ${locked ? `<div class="locked-banner">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Résultat validé par ${escapeHtml(x.validePar||'un utilisateur habilité')}. Verrouillé — toute correction doit être tracée.
+    </div>` : ""}
+    <div class="form-row"><label>Patient *</label>
+      <select class="input" id="lab-patient" ${x?'disabled':''}>${patientOptionsHtml(x?.patientId||"")}</select>
+    </div>
+    <div class="form-cols-2">
+      <div class="form-row"><label>Examen *</label><input class="input" id="lab-examen" value="${escapeHtml(x?.examen||"")}" ${locked?'disabled':''}></div>
+      <div class="form-row"><label>Priorité</label>
+        <select class="input" id="lab-priorite" ${locked?'disabled':''}>
+          <option value="normale" ${x?.priorite!=='urgente'?'selected':''}>Normale</option>
+          <option value="urgente" ${x?.priorite==='urgente'?'selected':''}>Urgente</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row"><label>Résultat (unités / valeurs de référence si pertinent)</label>
+      <textarea class="input" id="lab-resultat" ${locked?'disabled':''}>${escapeHtml(x?.resultat||"")}</textarea>
+    </div>
+    <div class="form-row"><label>Laborantin</label>
+      <input class="input" id="lab-laborantin" value="${escapeHtml(x?.laborantin || (currentUserDoc.role==='laborantin' ? (currentUserDoc.prenom+' '+currentUserDoc.nom) : ''))}" ${locked?'disabled':''}>
+    </div>
+    ${locked ? `<div class="form-row">
+      <label>Correction (si nécessaire)</label>
+      <textarea class="input" id="lab-correction" placeholder="Motif de la correction — sera tracé dans le journal d'audit"></textarea>
+      <div class="hint">Réservé aux profils habilités. Toute correction remet le résultat en attente de re-validation.</div>
+    </div>` : ""}
+  `, [
+    {label:"Annuler", cls:"btn-outline", action:closeModal},
+    ...(locked
+      ? (canValidate ? [{label:"Corriger (déverrouille)", cls:"btn-danger", action:()=>correctLab(id)}] : [])
+      : [
+          {label:"Enregistrer", cls:"btn-outline", action:()=>submitLab(id,false)},
+          ...(canValidate ? [{label:"Valider le résultat", cls:"btn-primary", action:()=>submitLab(id,true)}] : [])
+        ])
+  ]);
+}
+
+async function submitLab(id, validate){
+  const patientSel = document.getElementById("lab-patient");
+  const patientId = patientSel ? patientSel.value : null;
+  const examen = document.getElementById("lab-examen").value.trim();
+  if(!id && !patientId){ toast("Veuillez sélectionner un patient.", "error"); return; }
+  if(!examen){ toast("L'examen est obligatoire.", "error"); return; }
+  if(validate && !document.getElementById("lab-resultat").value.trim()){
+    toast("Impossible de valider un résultat vide.", "error"); return;
+  }
+
+  const data = {
+    examen,
+    priorite: document.getElementById("lab-priorite").value,
+    resultat: document.getElementById("lab-resultat").value.trim(),
+    laborantin: document.getElementById("lab-laborantin").value.trim(),
+    statut: validate ? "termine" : "en_cours",
+  };
+  if(!id) data.patientId = patientId;
+  if(validate){
+    data.valide = true;
+    data.validePar = `${currentUserDoc.prenom||""} ${currentUserDoc.nom||""}`.trim();
+    data.valideLe = Date.now();
+  }
+
+  await saveDoc("laboratoire", data, id);
+  toast(validate ? "Résultat validé et verrouillé." : "Demande enregistrée.", "success");
+  closeModal();
+  await loadAllData();
+  if(currentModule==="laboratoire") renderLabTable();
+}
+
+async function correctLab(id){
+  const motif = document.getElementById("lab-correction").value.trim();
+  if(!motif){ toast("Veuillez indiquer le motif de la correction.", "error"); return; }
+  await saveDoc("laboratoire", {
+    valide: false,
+    statut: "en_cours",
+    correctionMotif: motif,
+    correctionPar: `${currentUserDoc.prenom||""} ${currentUserDoc.nom||""}`.trim(),
+    correctionLe: Date.now(),
+  }, id);
+  toast("Résultat déverrouillé pour correction — action tracée.", "success");
+  closeModal();
+  await loadAllData();
+  if(currentModule==="laboratoire") renderLabTable();
+}
+/* -------------------------------------------------------------------------
+   M07 — PHARMACIE (catalogue + mouvements de stock historisés)
+------------------------------------------------------------------------- */
+function renderPharmacie(c){
+  c.innerHTML = mh("Pharmacie", "Catalogue, stock et mouvements", "new-med", "Ajouter un médicament") + `
+    <div class="tabs">
+      <div class="tab active" data-tab="catalogue">Catalogue</div>
+      <div class="tab" data-tab="mouvements">Historique des mouvements</div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table id="ph-table">
+          <thead><tr><th>Médicament</th><th>Dosage</th><th>Stock</th><th>Seuil</th><th>Expiration</th><th></th></tr></thead>
+          <tbody id="ph-body"></tbody>
+        </table>
+      </div>
+    </div>`;
+  renderPharTable();
+  document.getElementById("new-med").onclick = () => openPharma();
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.addEventListener("click", ()=>{
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      t.classList.add("active");
+      t.dataset.tab==="catalogue" ? renderPharTable() : renderPharMouvements();
+    });
+  });
+}
+
+function renderPharTable(){
+  const table = document.getElementById("ph-table");
+  table.querySelector("thead").innerHTML = `<tr><th>Médicament</th><th>Dosage</th><th>Stock</th><th>Seuil</th><th>Expiration</th><th></th></tr>`;
+  const body = document.getElementById("ph-body");
+  const list = CACHE.pharmacie;
+  if(list.length===0){ body.innerHTML = mt(6, "Stock vide", "Ajoutez les médicaments disponibles."); return; }
+  body.innerHTML = list.map(x=>{
+    const expSoon = x.expiration && (new Date(x.expiration) - Date.now()) < 30*24*3600*1000;
+    return `<tr>
+      <td>${escapeHtml(x.nom)}</td>
+      <td>${escapeHtml(x.dosage||'—')}</td>
+      <td><span class="badge ${Number(x.stock)<=Number(x.seuil||0)?'badge-danger':'badge-accent'}">${x.stock||0}</span></td>
+      <td>${x.seuil||0}</td>
+      <td>${expSoon ? `<span class="badge badge-warn">${escapeHtml(x.expiration)}</span>` : escapeHtml(x.expiration||'—')}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="openPharma('${x.id}')">Gérer</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderPharMouvements(){
+  const table = document.getElementById("ph-table");
+  table.querySelector("thead").innerHTML = `<tr><th>Date</th><th>Médicament</th><th>Type</th><th>Quantité</th><th>Motif</th><th>Utilisateur</th></tr>`;
+  const body = document.getElementById("ph-body");
+  const list = [...(CACHE.mouvementsStock||[])].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(list.length===0){ body.innerHTML = mt(6, "Aucun mouvement", "L'historique des entrées/sorties apparaîtra ici."); return; }
+  body.innerHTML = list.map(m=>`
+    <tr>
+      <td class="text-sm">${timeAgo(m.createdAt)}</td>
+      <td>${escapeHtml(m.medicamentNom||"—")}</td>
+      <td>${m.type==='entree' ? '<span class="badge badge-accent">Entrée</span>' : '<span class="badge badge-danger">Sortie</span>'}</td>
+      <td>${m.type==='entree'?'+':'-'}${m.quantite}</td>
+      <td>${escapeHtml(m.motif||"—")}</td>
+      <td>${escapeHtml(m.utilisateur||"—")}</td>
+    </tr>`).join("");
+}
+
+function openPharma(id=null){
+  const x = id ? CACHE.pharmacie.find(a=>a.id===id) : null;
+  openModal(x ? "Médicament" : "Ajouter un médicament", `
+    <div class="form-cols-2">
+      <div class="form-row"><label>Médicament *</label><input class="input" id="ph-nom" value="${escapeHtml(x?.nom||"")}"></div>
+      <div class="form-row"><label>Dosage / forme</label><input class="input" id="ph-dosage" value="${escapeHtml(x?.dosage||"")}"></div>
+    </div>
+    <div class="form-cols-3">
+      <div class="form-row"><label>Stock actuel</label><input type="number" class="input" id="ph-stock" value="${x?.stock??0}" disabled></div>
+      <div class="form-row"><label>Seuil d'alerte</label><input type="number" min="0" class="input" id="ph-seuil" value="${x?.seuil??5}"></div>
+      <div class="form-row"><label>Expiration (lot)</label><input type="date" class="input" id="ph-expiration" value="${escapeHtml(x?.expiration||"")}"></div>
+    </div>
+    ${x ? `
+    <div class="form-row" style="border-top:1px solid var(--line);padding-top:14px;margin-top:4px;">
+      <label>Mouvement de stock</label>
+      <div class="form-cols-3">
+        <select class="input" id="ph-mv-type">
+          <option value="entree">Entrée</option>
+          <option value="sortie">Sortie</option>
+        </select>
+        <input type="number" min="1" class="input" id="ph-mv-qte" placeholder="Quantité">
+        <input type="text" class="input" id="ph-mv-motif" placeholder="Motif (réappro, délivrance…)">
+      </div>
+      <div class="hint">Chaque mouvement est historisé avec la date et l'utilisateur (${escapeHtml(currentUserDoc.prenom+' '+currentUserDoc.nom)}).</div>
+    </div>` : `<div class="form-row"><label>Stock initial</label><input type="number" min="0" class="input" id="ph-mv-qte-init" value="0"></div>`}
+  `, [
+    {label:"Annuler", cls:"btn-outline", action:closeModal},
+    {label:"Enregistrer", cls:"btn-primary", action:()=>submitPharma(id)}
+  ]);
+}
+
+async function submitPharma(id){
+  const nom = document.getElementById("ph-nom").value.trim();
+  if(!nom){ toast("Le médicament est obligatoire.", "error"); return; }
+
+  const seuil = Number(document.getElementById("ph-seuil").value||0);
+  const dosage = document.getElementById("ph-dosage").value.trim();
+  const expiration = document.getElementById("ph-expiration").value;
+
+  if(!id){
+    // Création : stock initial = mouvement d'entrée tracé
+    const stockInit = Number(document.getElementById("ph-mv-qte-init").value||0);
+    const medId = await saveDoc("pharmacie", { nom, dosage, seuil, expiration, stock: stockInit });
+    if(stockInit > 0){
+      await saveDoc("mouvementsStock", {
+        medicamentId: medId, medicamentNom: nom, type:"entree", quantite: stockInit,
+        motif:"Création — stock initial",
+        utilisateur: `${currentUserDoc.prenom||""} ${currentUserDoc.nom||""}`.trim(),
+      });
+    }
+    toast("Médicament ajouté au catalogue.", "success");
+  } else {
+    const x = CACHE.pharmacie.find(a=>a.id===id);
+    const mvType = document.getElementById("ph-mv-type").value;
+    const mvQte = Number(document.getElementById("ph-mv-qte").value||0);
+    const mvMotif = document.getElementById("ph-mv-motif").value.trim();
+
+    let newStock = Number(x.stock||0);
+    if(mvQte > 0){
+      if(mvType==="sortie" && mvQte > newStock){
+        toast(`Stock insuffisant (disponible : ${newStock}).`, "error"); return;
+      }
+      newStock = mvType==="entree" ? newStock + mvQte : newStock - mvQte;
+      await saveDoc("mouvementsStock", {
+        medicamentId:id, medicamentNom:nom, type:mvType, quantite:mvQte,
+        motif: mvMotif || (mvType==="entree" ? "Réapprovisionnement" : "Délivrance"),
+        utilisateur: `${currentUserDoc.prenom||""} ${currentUserDoc.nom||""}`.trim(),
+      });
+    }
+    await saveDoc("pharmacie", { nom, dosage, seuil, expiration, stock: newStock }, id);
+    toast("Fiche médicament mise à jour.", "success");
+  }
+  closeModal();
+  await loadAllData();
+  if(currentModule==="pharmacie") renderPharTable();
+}
+function renderObstetrique(c){c.innerHTML=mh("Obstétrique","Suivi des grossesses et consultations prénatales","new-ob","Nouveau suivi")+`<div class="card"><div class="table-wrap"><table><thead><tr><th>Patiente</th><th>DPA</th><th>CPN</th><th>TA</th><th>Poids</th><th>Observation</th><th></th></tr></thead><tbody id="ob-body"></tbody></table></div></div>`;const b=document.getElementById("ob-body"),a=CACHE.obstetrique;b.innerHTML=a.length?a.map(x=>`<tr><td>${escapeHtml(patientName(x.patientId))}</td><td>${escapeHtml(x.dpa||'—')}</td><td>${escapeHtml(x.cpn||'—')}</td><td>${escapeHtml(x.ta||'—')}</td><td>${escapeHtml(x.poids||'—')}</td><td>${escapeHtml(x.observation||'—')}</td><td><button class="btn btn-outline btn-sm" onclick="openOb('${x.id}')">Ouvrir</button></td></tr>`).join(""):mt(7,"Aucun suivi","Aucun suivi obstétrical enregistré.");document.getElementById("new-ob").onclick=()=>openOb();}
+function openOb(id=null){const x=id?CACHE.obstetrique.find(a=>a.id===id):null;openModal(x?"Suivi obstétrical":"Nouveau suivi",`<div class="form-row"><label>Patiente *</label><select class="input" data-mf="patientId">${patientOptionsHtml(x?.patientId||"")}</select></div><div class="form-cols-2"><div class="form-row"><label>DPA</label><input type="date" class="input" data-mf="dpa" value="${escapeHtml(x?.dpa||"")}"></div><div class="form-row"><label>Date CPN</label><input type="date" class="input" data-mf="cpn" value="${escapeHtml(x?.cpn||"")}"></div></div><div class="form-cols-2"><div class="form-row"><label>TA</label><input class="input" data-mf="ta" value="${escapeHtml(x?.ta||"")}"></div><div class="form-row"><label>Poids</label><input class="input" data-mf="poids" value="${escapeHtml(x?.poids||"")}"></div></div><div class="form-row"><label>Observation / plan</label><textarea class="input" data-mf="observation">${escapeHtml(x?.observation||"")}</textarea></div>`,[{label:"Annuler",cls:"btn-outline",action:closeModal},{label:"Enregistrer",cls:"btn-primary",action:async()=>{const d={};document.querySelectorAll('[data-mf]').forEach(e=>d[e.dataset.mf]=e.value.trim());if(!d.patientId){toast("Veuillez sélectionner une patiente.","error");return;}await saveDoc("obstetrique",d,id);closeModal();toast("Suivi enregistré.","success");await loadAllData();}}]);}
+function renderChirurgie(c){c.innerHTML=mh("Chirurgie","Programmation et suivi opératoire","new-surg","Nouvelle intervention")+`<div class="card"><div class="table-wrap"><table><thead><tr><th>Patient</th><th>Intervention</th><th>Date</th><th>Chirurgien</th><th>Bloc</th><th>Statut</th><th></th></tr></thead><tbody id="surg-body"></tbody></table></div></div>`;const b=document.getElementById("surg-body"),a=CACHE.chirurgie;b.innerHTML=a.length?a.map(x=>`<tr><td>${escapeHtml(patientName(x.patientId))}</td><td>${escapeHtml(x.intervention)}</td><td>${escapeHtml(x.date||'—')} ${escapeHtml(x.heure||'')}</td><td>${escapeHtml(x.chirurgien||'—')}</td><td>${escapeHtml(x.bloc||'—')}</td><td>${statutBadge(x.statut||'programme')}</td><td><button class="btn btn-outline btn-sm" onclick="openSurg('${x.id}')">Ouvrir</button></td></tr>`).join(""):mt(7,"Aucune intervention","Aucune intervention programmée.");document.getElementById("new-surg").onclick=()=>openSurg();}
+function openSurg(id=null){const x=id?CACHE.chirurgie.find(a=>a.id===id):null;openModal(x?"Dossier opératoire":"Nouvelle intervention",`<div class="form-row"><label>Patient *</label><select class="input" data-mf="patientId">${patientOptionsHtml(x?.patientId||"")}</select></div><div class="form-row"><label>Intervention *</label><input class="input" data-mf="intervention" value="${escapeHtml(x?.intervention||"")}"></div><div class="form-cols-3"><div class="form-row"><label>Date</label><input type="date" class="input" data-mf="date" value="${escapeHtml(x?.date||"")}"></div><div class="form-row"><label>Heure</label><input type="time" class="input" data-mf="heure" value="${escapeHtml(x?.heure||"")}"></div><div class="form-row"><label>Bloc</label><input class="input" data-mf="bloc" value="${escapeHtml(x?.bloc||"")}"></div></div><div class="form-cols-2"><div class="form-row"><label>Chirurgien</label><input class="input" data-mf="chirurgien" value="${escapeHtml(x?.chirurgien||"")}"></div><div class="form-row"><label>Statut</label><select class="input" data-mf="statut"><option value="programme">Programmé</option><option value="preparation">Préparation</option><option value="en_cours">En cours</option><option value="termine">Terminé</option><option value="annule">Annulé</option></select></div></div><div class="form-row"><label>Compte rendu</label><textarea class="input" data-mf="compteRendu">${escapeHtml(x?.compteRendu||"")}</textarea></div>`,[{label:"Annuler",cls:"btn-outline",action:closeModal},{label:"Enregistrer",cls:"btn-primary",action:async()=>{const d={};document.querySelectorAll('[data-mf]').forEach(e=>d[e.dataset.mf]=e.value.trim());if(!d.patientId||!d.intervention){toast("Patient et intervention obligatoires.","error");return;}await saveDoc("chirurgie",d,id);closeModal();toast("Intervention enregistrée.","success");await loadAllData();}}]);}
+/* -------------------------------------------------------------------------
+   M10 — CAISSE / FACTURATION (liée aux actes réalisés)
+------------------------------------------------------------------------- */
+function renderCaisse(c){
+  const totalFacture = CACHE.factures.reduce((a,x)=>a+Number(x.montant||0),0);
+  const totalPaye = CACHE.paiements.reduce((a,x)=>a+Number(x.montant||0),0);
+
+  c.innerHTML = mh("Caisse / Facturation", "Factures, encaissements et actes non facturés", null, "") + `
+    <div class="page-head" style="margin-top:-12px;margin-bottom:16px;">
+      <div></div>
+      <div class="flex gap-8">
+        <button class="btn btn-outline" id="fac-from-acte-btn">Générer depuis un acte</button>
+        <button class="btn btn-primary" id="new-fac-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Nouvelle facture libre
+        </button>
+      </div>
+    </div>
+    <div class="grid grid-3" style="margin-bottom:20px;">
+      ${kpiCard("Facturé", totalFacture.toLocaleString("fr-FR")+" GNF", null, icoCash(), "var(--primary)", "var(--primary-tint)")}
+      ${kpiCard("Encaissé", totalPaye.toLocaleString("fr-FR")+" GNF", null, icoCash(), "var(--accent)", "var(--accent-tint)")}
+      ${kpiCard("Reste à percevoir", Math.max(0,totalFacture-totalPaye).toLocaleString("fr-FR")+" GNF", null, icoCash(), "var(--warn)", "var(--warn-tint)")}
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>N°</th><th>Patient</th><th>Objet</th><th>Montant</th><th>Payé</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="fac-body"></tbody>
+        </table>
+      </div>
+    </div>`;
+  renderFacTable();
+  document.getElementById("new-fac-btn").onclick = () => openFac();
+  document.getElementById("fac-from-acte-btn").onclick = () => openFacFromActe();
+}
+
+function renderFacTable(){
+  const body = document.getElementById("fac-body");
+  const list = [...CACHE.factures].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(list.length===0){ body.innerHTML = mt(7, "Aucune facture", "Aucune facture enregistrée."); return; }
+  body.innerHTML = list.map(x=>{
+    const q = CACHE.paiements.filter(z=>z.factureId===x.id).reduce((n,z)=>n+Number(z.montant||0),0);
+    return `<tr>
+      <td class="mono text-sm">${escapeHtml(x.numero||'—')}</td>
+      <td>${escapeHtml(patientName(x.patientId))}</td>
+      <td>${escapeHtml(x.objet)}</td>
+      <td>${Number(x.montant||0).toLocaleString('fr-FR')} GNF</td>
+      <td>${q.toLocaleString('fr-FR')} GNF</td>
+      <td>${statutBadge(q>=Number(x.montant||0)?'termine':'en_attente')}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="openFac('${x.id}')">Gérer</button></td>
+    </tr>`;
+  }).join("");
+}
+
+// Liste les actes réalisés (consultations diagnostiquées, analyses validées, interventions terminées)
+// qui n'ont pas encore de facture liée, pour permettre une facturation à la source (M10).
+function actesNonFactures(){
+  const factureeIds = new Set(CACHE.factures.map(f=>f.acteRef).filter(Boolean));
+  const actes = [];
+  CACHE.consultations.filter(x=>x.diagnostic && !factureeIds.has('consult_'+x.id)).forEach(x=>
+    actes.push({ref:'consult_'+x.id, patientId:x.patientId, objet:`Consultation — ${x.motif||'consultation'}`, suggestion:50000}));
+  CACHE.laboratoire.filter(x=>x.valide && !factureeIds.has('lab_'+x.id)).forEach(x=>
+    actes.push({ref:'lab_'+x.id, patientId:x.patientId, objet:`Analyse — ${x.examen}`, suggestion:30000}));
+  CACHE.chirurgie.filter(x=>x.statut==='termine' && !factureeIds.has('chir_'+x.id)).forEach(x=>
+    actes.push({ref:'chir_'+x.id, patientId:x.patientId, objet:`Intervention — ${x.intervention}`, suggestion:500000}));
+  return actes;
+}
+
+function openFacFromActe(){
+  const actes = actesNonFactures();
+  if(actes.length===0){
+    openModal("Générer depuis un acte", emptyState("Aucun acte à facturer", "Tous les actes réalisés ont déjà une facture, ou aucun acte n'est encore terminé."), [{label:"Fermer", cls:"btn-outline", action:closeModal}]);
+    return;
+  }
+  openModal("Générer une facture depuis un acte", `
+    <div class="hint" style="margin-bottom:10px;">Sélectionnez un acte réalisé non encore facturé.</div>
+    ${actes.map((a,i)=>`
+      <div class="list-row">
+        <div class="list-row-main">
+          <div class="list-row-title">${escapeHtml(patientName(a.patientId))}</div>
+          <div class="list-row-sub">${escapeHtml(a.objet)}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="closeModal();openFac(null,${JSON.stringify(a).replace(/"/g,'&quot;')})">Facturer</button>
+      </div>`).join("")}
+  `, [{label:"Fermer", cls:"btn-outline", action:closeModal}]);
+}
+
+function openFac(id=null, fromActe=null){
+  const x = id ? CACHE.factures.find(a=>a.id===id) : null;
+  openModal(x ? "Facture" : "Nouvelle facture", `
+    <div class="form-row"><label>Patient *</label>
+      <select class="input" id="fac-patient" ${fromActe?'disabled':''}>${patientOptionsHtml(x?.patientId||fromActe?.patientId||"")}</select>
+    </div>
+    <div class="form-cols-2">
+      <div class="form-row"><label>Objet *</label><input class="input" id="fac-objet" value="${escapeHtml(x?.objet||fromActe?.objet||"")}"></div>
+      <div class="form-row"><label>Montant (GNF) *</label><input type="number" min="0" class="input" id="fac-montant" value="${x?.montant||fromActe?.suggestion||0}"></div>
+    </div>
+    ${x ? `<div class="form-row"><label>Paiement supplémentaire (GNF)</label><input type="number" min="0" class="input" id="fac-pay" value="0"></div>` : ""}
+  `, [
+    {label:"Annuler", cls:"btn-outline", action:closeModal},
+    {label:"Enregistrer", cls:"btn-primary", action:()=>submitFac(id, fromActe)}
+  ]);
+}
+
+async function submitFac(id, fromActe){
+  const patientId = document.getElementById("fac-patient").value || fromActe?.patientId;
+  const objet = document.getElementById("fac-objet").value.trim();
+  const montant = Number(document.getElementById("fac-montant").value||0);
+  if(!patientId || !objet || montant<=0){ toast("Patient, objet et montant obligatoires.", "error"); return; }
+
+  const existing = id ? CACHE.factures.find(a=>a.id===id) : null;
+  const data = {
+    patientId, objet, montant,
+    numero: existing?.numero || ('FAC-'+new Date().getFullYear()+'-'+String(CACHE.factures.length+1).padStart(5,'0')),
+  };
+  if(fromActe) data.acteRef = fromActe.ref;
+
+  const fid = await saveDoc("factures", data, id);
+  const payEl = document.getElementById("fac-pay");
+  const pay = payEl ? Number(payEl.value||0) : 0;
+  if(pay > 0){
+    await saveDoc("paiements", {
+      factureId: fid, montant: pay, moyen: "Espèces",
+      caissier: `${currentUserDoc.prenom||""} ${currentUserDoc.nom||""}`.trim(),
+    });
+  }
+  toast("Facture enregistrée.", "success");
+  closeModal();
+  await loadAllData();
+  if(currentModule==="caisse") renderFacTable();
+}
+function renderPersonnel(c){c.innerHTML=mh("Personnel / RH","Utilisateurs, rôles et services","new-user","Ajouter un personnel")+`<div class="card"><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Service</th><th>Statut</th><th></th></tr></thead><tbody id="users-body"></tbody></table></div></div>`;const b=document.getElementById("users-body"),a=CACHE.users;b.innerHTML=a.length?a.map(x=>`<tr><td>${escapeHtml((x.prenom||'')+' '+(x.nom||''))}</td><td>${escapeHtml(x.email||'—')}</td><td>${escapeHtml(ROLES[x.role]?.label||x.role||'—')}</td><td>${escapeHtml(x.service||'—')}</td><td>${x.actif!==false?'<span class="badge badge-accent">Actif</span>':'<span class="badge badge-danger">Désactivé</span>'}</td><td class="flex gap-8"><button class="btn btn-outline btn-sm" onclick="openUser('${x.id}')">Modifier</button><button class="btn btn-outline btn-sm" onclick="openPinReset('${x.id}')">${x.pinHash?'Réinitialiser PIN':'Définir PIN'}</button></td></tr>`).join(""):mt(6,"Aucun personnel","Aucune fiche de personnel.");document.getElementById("new-user").onclick=()=>openUser();}
+function openPinReset(id){
+  const x = CACHE.users.find(a=>a.id===id);
+  if(!x) return;
+  openModal(`PIN de ${x.prenom||''} ${x.nom||''}`.trim(), `
+    <p class="section-sub" style="margin-bottom:14px;">Définissez un nouveau code PIN à 6 chiffres. La personne devra l'utiliser dès sa prochaine connexion.</p>
+    <div class="form-row"><label>Nouveau PIN</label><input class="input" id="pr-pin1" inputmode="numeric" maxlength="6" placeholder="••••••"></div>
+    <div class="form-row"><label>Confirmer le PIN</label><input class="input" id="pr-pin2" inputmode="numeric" maxlength="6" placeholder="••••••"></div>
+  `, [
+    { label:'Annuler', cls:'btn-outline', action: closeModal },
+    { label:'Enregistrer', cls:'btn-primary', action: async ()=>{
+      const p1 = document.getElementById('pr-pin1').value.trim();
+      const p2 = document.getElementById('pr-pin2').value.trim();
+      if(!/^\d{6}$/.test(p1)){ toast('Le PIN doit contenir exactement 6 chiffres.','error'); return; }
+      if(p1!==p2){ toast('Les deux codes PIN ne correspondent pas.','error'); return; }
+      if(DEMO_MODE){
+        await saveDoc('users', { pin: p1 }, id);
+      }else{
+        const salt = randomSalt();
+        const hash = await hashPin(p1, salt);
+        await saveDoc('users', { pinHash: hash, pinSalt: salt }, id);
+      }
+      closeModal();
+      toast('Code PIN enregistré.','success');
+      await loadAllData();
+    }}
+  ]);
+}
+function openUser(id=null){const x=id?CACHE.users.find(a=>a.id===id):null;const roles=Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${x?.role===k?'selected':''}>${v.label}</option>`).join('');openModal(x?'Personnel':'Nouveau personnel',`<div class="form-cols-2"><div class="form-row"><label>Prénom *</label><input class="input" data-mf="prenom" value="${escapeHtml(x?.prenom||'')}"></div><div class="form-row"><label>Nom *</label><input class="input" data-mf="nom" value="${escapeHtml(x?.nom||'')}"></div></div><div class="form-cols-2"><div class="form-row"><label>Email</label><input type="email" class="input" data-mf="email" value="${escapeHtml(x?.email||'')}"></div><div class="form-row"><label>Rôle</label><select class="input" data-mf="role">${roles}</select></div></div><div class="form-cols-2"><div class="form-row"><label>Service</label><input class="input" data-mf="service" value="${escapeHtml(x?.service||'')}"></div><div class="form-row"><label>Statut</label><select class="input" data-mf="actif"><option value="true" ${x?.actif!==false?'selected':''}>Actif</option><option value="false" ${x?.actif===false?'selected':''}>Désactivé</option></select></div></div>`,[{label:'Annuler',cls:'btn-outline',action:closeModal},{label:'Enregistrer',cls:'btn-primary',action:async()=>{const d={};document.querySelectorAll('[data-mf]').forEach(e=>d[e.dataset.mf]=e.value.trim());d.actif=d.actif!=='false';if(!d.prenom||!d.nom){toast('Prénom et nom obligatoires.','error');return;}await saveDoc('users',d,id);closeModal();toast('Personnel enregistré.','success');await loadAllData();}}]);}
+function renderRapports(c){const total=CACHE.patients.length,con=CACHE.consultations.length,lab=CACHE.laboratoire.length,soin=CACHE.soins.length;const svc={};CACHE.consultations.forEach(x=>svc[x.service||'Non renseigné']=(svc[x.service||'Non renseigné']||0)+1);c.innerHTML=mh('Rapports & statistiques','Indicateurs calculés sur les données enregistrées')+`<div class="grid grid-4" style="margin-bottom:20px">${kpiCard('Patients',total,null,icoUsers(),'var(--primary)','var(--primary-tint)')}${kpiCard('Consultations',con,null,icoStetho(),'var(--accent)','var(--accent-tint)')}${kpiCard('Analyses',lab,null,icoFlask(),'var(--warn)','var(--warn-tint)')}${kpiCard('Soins',soin,null,icoHeart(),'var(--primary)','var(--primary-tint)')}</div><div class="grid grid-2"><div class="card card-pad"><div class="section-title">Consultations par service</div>${Object.keys(svc).length?Object.entries(svc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="list-row"><div class="list-row-main"><div class="list-row-title">${escapeHtml(k)}</div></div><span class="badge badge-neutral">${v}</span></div>`).join(''):emptyState('Aucune donnée','')}</div><div class="card card-pad"><div class="section-title">Activité du plateau</div><div class="list-row"><div class="list-row-main">Laboratoire</div><span class="badge badge-neutral">${lab}</span></div><div class="list-row"><div class="list-row-main">Soins infirmiers</div><span class="badge badge-neutral">${soin}</span></div><div class="list-row"><div class="list-row-main">Obstétrique</div><span class="badge badge-neutral">${CACHE.obstetrique.length}</span></div><div class="list-row"><div class="list-row-main">Chirurgie</div><span class="badge badge-neutral">${CACHE.chirurgie.length}</span></div></div></div>`;}
+function renderAdmin(c){const low=CACHE.pharmacie.filter(x=>Number(x.stock||0)<=Number(x.seuil||0)).length;const set=CACHE.settings[0]||{};c.innerHTML=mh('Administration','Paramètres et état du système')+`<div class="grid grid-2"><div class="card card-pad"><div class="section-title">Établissement</div><p class="section-sub">Paramètres généraux</p><div class="form-row"><label>Nom</label><input class="input" id="adm-name" value="${escapeHtml(set.nomEtablissement||'Centre Médico-Chirurgical La Délivrance')}"></div><div class="form-row"><label>Devise</label><input class="input" id="adm-dev" value="${escapeHtml(set.devise||'GNF')}"></div><button class="btn btn-primary" id="adm-save">Enregistrer</button></div><div class="card card-pad"><div class="section-title">État du système</div><div class="list-row"><div class="list-row-main">Stock sous le seuil</div><span class="badge ${low?'badge-danger':'badge-accent'}">${low}</span></div><div class="list-row"><div class="list-row-main">Personnel actif</div><span class="badge badge-neutral">${CACHE.users.filter(x=>x.actif!==false).length}</span></div><div class="list-row"><div class="list-row-main">Mode</div><span class="badge ${DEMO_MODE?'badge-warn':'badge-accent'}">${DEMO_MODE?'DÉMO':'FIREBASE'}</span></div></div></div>`;document.getElementById('adm-save').onclick=async()=>{await saveDoc('settings',{id:'general',nomEtablissement:document.getElementById('adm-name').value.trim(),devise:document.getElementById('adm-dev').value.trim()},'general');toast('Paramètres enregistrés.','success');await loadAllData();};}
+function openModal(title, bodyHtml, actions){
+  closeModal();
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.id = "active-modal";
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head">
+        <h3>${title}</h3>
+        <button class="modal-close" id="modal-close-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">${bodyHtml}</div>
+      <div class="modal-foot" id="modal-foot"></div>
+    </div>`;
+  document.body.appendChild(backdrop);
+  const foot = document.getElementById("modal-foot");
+  actions.forEach(a=>{
+    const btn = document.createElement("button");
+    btn.className = `btn ${a.cls}`;
+    btn.textContent = a.label;
+    btn.addEventListener("click", a.action);
+    foot.appendChild(btn);
+  });
+  document.getElementById("modal-close-btn").addEventListener("click", closeModal);
+  backdrop.addEventListener("click",(e)=>{ if(e.target===backdrop) closeModal(); });
+}
+function closeModal(){
+  const m = document.getElementById("active-modal");
+  if(m) m.remove();
+}
+
+function toast(message, type="info"){
+  const wrap = document.getElementById("toast-wrap");
+  const el = document.createElement("div");
+  el.className = `toast ${type==='success'?'success':type==='error'?'error':''}`;
+  el.textContent = message;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.remove(); }, 3600);
+}
+
+/* -------------------------------------------------------------------------
+   12. HELPERS
+------------------------------------------------------------------------- */
+function escapeHtml(str){
+  if(str===null||str===undefined) return "";
+  return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function initialsOf(p){
+  return (((p.prenom||"")[0]||"")+((p.nom||"")[0]||"")).toUpperCase() || "?";
+}
+function ageOf(dob){
+  if(!dob) return "—";
+  const d = new Date(dob);
+  if(isNaN(d)) return "—";
+  const diff = Date.now() - d.getTime();
+  return Math.floor(diff / (365.25*24*3600*1000));
+}
+function isToday(item){
+  const ts = item.createdAt;
+  if(!ts) return false;
+  const d = (ts.toDate) ? ts.toDate() : new Date(ts);
+  const now = new Date();
+  return d.toDateString() === now.toDateString();
+}
+function timeAgo(ts){
+  if(!ts) return "—";
+  const d = (ts.toDate) ? ts.toDate() : new Date(ts);
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs/60000);
+  if(mins < 1) return "à l'instant";
+  if(mins < 60) return `il y a ${mins} min`;
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return `il y a ${hrs} h`;
+  const days = Math.floor(hrs/24);
+  return `il y a ${days} j`;
+}
+function emptyState(title, sub){
+  return `<div class="empty-state">
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6v6H9z"/></svg>
+    <h3>${title}</h3><p>${sub}</p>
+  </div>`;
+}
+</script>
+</body>
+</html>

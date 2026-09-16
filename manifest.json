@@ -1,0 +1,17 @@
+{
+  "name": "CMCD App — Centre Médico-Chirurgical La Délivrance",
+  "short_name": "CMCD",
+  "description": "Application de gestion hospitalière — patients, consultations, pharmacie, caisse.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F6F8FA",
+  "theme_color": "#0B3D5C",
+  "lang": "fr",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
