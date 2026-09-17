@@ -529,12 +529,12 @@ textarea.input{resize:vertical;min-height:70px;}
    Console Firebase > Paramètres du projet > Vos applications > SDK config.
 ------------------------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "AIzaSyA9XXG85QjMyoD-9l_Pu0rdfmqVorsJFfU",
-  authDomain: "clinique-cmcd.firebaseapp.com",
-  projectId: "clinique-cmcd",
-  storageBucket: "clinique-cmcd.firebasestorage.app",
-  messagingSenderId: "1025708939658",
-  appId: "1:1025708939658:web:ee757ecd82ff6b1019d073"
+  apiKey: "AIzaSyB69q27dXgyeIXkYGhmngN8Pdpg9xsMr70",
+  authDomain: "cliniquecmcd.firebaseapp.com",
+  projectId: "cliniquecmcd",
+  storageBucket: "cliniquecmcd.firebasestorage.app",
+  messagingSenderId: "738680382170",
+  appId: "1:738680382170:web:5022b4fc9291212a533be3"
 };
 
 let fbApp, auth, db;
@@ -787,7 +787,8 @@ async function loadProfileStep(){
   }catch(e){
     console.error(e);
     profileLoading.classList.add("hidden");
-    showAuthError("Impossible de charger la liste du personnel. Vérifiez la connexion.");
+    const detail = (e && (e.code || e.message)) ? ` (${e.code || ""} ${e.message || ""})`.trim() : "";
+    showAuthError("Impossible de charger la liste du personnel. Vérifiez la connexion." + (detail ? " — Détail : " + detail : ""));
     return;
   }
 
